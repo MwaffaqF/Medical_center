@@ -2,9 +2,10 @@
 
 | | |
 |---|---|
-| **Status** | Draft v0.2 — for review with center management |
+| **Status** | Draft v0.3 — for review with center management |
 | **Date** | 2026-11-21 |
 | **Scope** | MVP / pilot for the first center |
+| **Country** | Syria |
 
 ---
 
@@ -47,10 +48,11 @@ This causes double bookings, lost requests in chat history, repeated questions f
 | D7 | **Patients cannot cancel or reschedule themselves** | They ask via WhatsApp or phone; reception handles it. |
 | D8 | Availability uses **per-date availability sessions**, not a weekly template | Fits on-call doctors. A "copy previous week" shortcut is provided. |
 | D9 | **Every doctor** can be booked online | If a doctor has no published session, the patient sends a *booking request* instead. |
-| D10 | WhatsApp in the MVP = **click-to-chat links** (`wa.me`) | The Meta WhatsApp Cloud API comes in Phase 2, behind the same notification module. |
+| D10 | WhatsApp = **click-to-chat links** (`wa.me`), sent by reception | The WhatsApp Business API is **not available for Syria** (§13), so click-to-chat stays the WhatsApp channel. Automation in Phase 2 uses other channels. |
 | D11 | Hosting on the **Cloudflare Free plan** for the MVP and pilot | Workers, D1, R2 and Turnstile. Upgrade to Workers Paid (USD 5/month) before or soon after go-live. See §12.4. |
 | D12 | The system is run by **receptionists** | The center manager configures it; doctors get read-only access (optional). |
 | D13 | A **Super admin** (platform owner) level exists from the MVP | Manages centers, center users and support access. See §11.13. |
+| D15 | Country: **Syria** | Defaults and constraints in §19. |
 | D14 | Stack: **Astro** (public website), **React SPA** (dashboard), **Hono API** on Workers | Clear frontend/backend split, light enough for the Free plan, and the API is reusable by the future mobile app. See §12. |
 
 ## 4. Users and roles
@@ -392,11 +394,13 @@ The Arabic texts are drafts; the center should review them.
 
 **Reminders in the MVP:** the Today screen has a **"Tomorrow's reminders"** list. Each row has a send button, so reception can work through the list quickly.
 
-**Phase 2 (WhatsApp Cloud API):**
-- Meta Business verification and approved utility templates.
-- Automatic confirmation and reminders (Cron Triggers and Queues), phone verification codes on the website.
-- Later, a booking chatbot.
-- The `/src/notify` module switches from building links to API calls; the dashboard flows stay the same.
+**Why the WhatsApp API is not planned:** Meta's WhatsApp Business Platform (Cloud API) lists Syria as not eligible. Businesses in Syria can't use it, and WhatsApp users in Syria can't receive messages sent through it. Unofficial automation tools that drive a normal WhatsApp account break WhatsApp's terms and can get the center's number banned, so they are **not** used.
+
+**Phase 2 automation options** (built behind the same `/notify` module):
+- **SMS** through a local Syrian bulk-SMS provider (via the mobile operators) for automatic confirmations, reminders and phone verification codes. Cost and API availability to be checked.
+- **Web push notifications** from the PWA, for patients who allow them. Free, but on iPhone it needs the site added to the home screen.
+- **Telegram bot**, if the center's patients use Telegram.
+- **WhatsApp API**, only if Meta adds Syria to the eligible countries in future.
 
 ## 14. Localisation and mobile
 
@@ -415,7 +419,7 @@ The Arabic texts are drafts; the center should review them.
 - Passwords are hashed with a strong algorithm, and login attempts are rate-limited.
 - Public endpoints return only public data. Patient data is never exposed on the website, and the booking-received page shows only the reference and summary.
 - Audit log for appointment, payment and settings changes.
-- **Data residency**: Cloudflare D1 does not guarantee storage in a specific country. The applicable local health and personal-data law must be confirmed (§17). If in-country storage is required, the database layer moves to a local PostgreSQL host; Drizzle keeps that change contained.
+- **Data residency**: Cloudflare D1 does not guarantee storage in a specific country. Syria's Law No. 12 of 2024 on electronic personal data is the relevant law; no explicit in-country storage rule for this kind of data was found, but its application after the 2024–25 transition is unclear. **Confirm with a Syrian lawyer** before go-live (§19). If in-country storage turns out to be required, the database layer moves to a local PostgreSQL host; Drizzle keeps that change contained.
 - A privacy notice on the website, and patient consent at booking (a checkbox with a link).
 
 ## 16. Delivery plan (estimate)
@@ -442,11 +446,13 @@ The Arabic texts are drafts; the center should review them.
 
 ## 17. Open questions (for the session with management)
 
-1. **Country of the center**, and whether local law requires health or patient data to be stored in the country. This affects §12 and §15.
+1. **Legal check in Syria** (with a local lawyer): Law No. 12 of 2024 on personal data, whether hosting abroad is allowed, consent wording, and any Ministry of Health or Syrian Medical Syndicate rules on publishing doctor profiles and prices online.
 2. Lengths and prices for each doctor and booking type (initial data).
 3. Slot step (10 min?), minimum notice for online booking (2 hours?), how far ahead patients can book (30 days?).
 4. Default website language (Arabic?) and digit style.
-5. Which WhatsApp number to use (a center number on a dedicated phone, preferably WhatsApp Business), and who holds the device.
+5. Which WhatsApp number to use (a center number on a dedicated phone with the WhatsApp Business app), and who holds the device.
+12. Prices in the **new Syrian pound** only, or also shown in USD?
+13. Does reception have a backup internet connection (for example, mobile data) and power backup at the front desk?
 6. Patient details to collect: name and phone only, or also gender and date of birth?
 7. Should doctors get dashboard access in the MVP?
 8. Domain name, logo, brand colours, photos of the center and doctors.
@@ -456,6 +462,29 @@ The Arabic texts are drafts; the center should review them.
 
 ## 18. Out of scope for the MVP (future phases)
 
-- **Phase 2**: WhatsApp Cloud API (automatic confirmations and reminders, phone verification codes), WhatsApp booking chatbot, waiting list, patient reviews, richer analytics.
+- **Phase 2**: automatic confirmations, reminders and phone verification through SMS or web push (§13), waiting list, patient reviews, richer analytics.
 - **Phase 3**: native mobile app, patient accounts (self-service reschedule and cancel requests), online payments and deposits, multiple branches, multi-center SaaS (self-service center onboarding, subscription billing, custom domains; the Super admin console already exists from the MVP).
 - **Not planned without a separate compliance review**: medical records, prescriptions, lab results, video consultations.
+
+## 19. Syria-specific considerations
+
+### 19.1 Defaults
+| Setting | Value |
+|---|---|
+| Currency | New Syrian pound (SYP, new notes since 1 Jan 2026; 100 old = 1 new). Prices are entered in new pounds. Optional USD display (open question). |
+| Phone | Country code +963. Local mobile format `09XXXXXXXX` is accepted and stored as `+9639XXXXXXXX`. |
+| Time zone | `Asia/Damascus` (UTC+3 all year) |
+| Weekend | Friday (confirm whether the center also closes on Saturday). The calendar week starts on Saturday. |
+| Default language | Arabic, with Levantine-friendly wording in messages (to be reviewed by the center) |
+
+### 19.2 Sanctions and service availability
+US comprehensive sanctions on Syria were lifted in 2025, and the State Sponsor of Terrorism designation was rescinded in August 2026. Some export-control and targeted restrictions remain. In practice:
+- **Cloudflare, GitHub and similar US services**: sign-up should now be possible, but check each provider's current terms when opening accounts. Accounts are opened honestly, with no tools to hide the location.
+- **Payment cards**: Syrian bank cards are often not accepted by international services. This matters if R2 asks for a card and when upgrading to Workers Paid (USD 5/month). Decide early whose card is used.
+- **WhatsApp Business API**: not available (§13). The WhatsApp app and click-to-chat links work.
+
+### 19.3 Unreliable internet and power
+- Public pages stay light (Astro, compressed images) for slow mobile connections.
+- The dashboard is a PWA: it keeps showing the last loaded agenda when the connection drops, with a clear "offline" banner, and blocks changes until it reconnects (so there are no conflicting bookings).
+- A **printable daily list** per doctor, so reception can keep working during a long outage and enter changes afterwards.
+- Reception should have a mobile-data backup connection.
