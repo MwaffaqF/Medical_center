@@ -1,0 +1,15 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  // Public website (Astro, server-rendered). Doctor and specialty data will come from the
+  // API Worker through a service binding in milestone M3.
+  "name": "medical-center-web",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": { "binding": "ASSETS" },
+  "observability": { "enabled": true },
+  "env": {
+    "staging": { "name": "medical-center-web-staging" },
+    "production": { "name": "medical-center-web" }
+  }
+}

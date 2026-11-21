@@ -1,0 +1,16 @@
+{
+  "name": "medical-center",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev:api": "pnpm --filter @mc/api dev",
+    "dev:dashboard": "pnpm --filter @mc/dashboard dev",
+    "dev:web": "pnpm --filter @mc/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:migrate:local": "pnpm --filter @mc/api db:migrate:local",
+    "db:seed:local": "pnpm --filter @mc/api db:seed:local"
+  }
+}

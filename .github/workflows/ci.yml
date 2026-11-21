@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Type-check
+        run: pnpm -r typecheck
+      - name: Test
+        run: pnpm -r test
+      - name: Build
+        run: pnpm --filter @mc/dashboard build && pnpm --filter @mc/web build
+      - name: Check migrations are up to date with the schema
+        working-directory: apps/api
+        run: |
+          pnpm exec drizzle-kit generate --name ci-check
+          if [ -n "$(git status --porcelain migrations)" ]; then
+            echo "::error::Schema changed without a migration. Run 'pnpm --filter @mc/api db:generate' and commit it."
+            git status --porcelain migrations
+            exit 1
+          fi

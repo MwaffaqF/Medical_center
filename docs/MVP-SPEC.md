@@ -134,6 +134,15 @@ Index on `phone`. Duplicates (same phone and name) can be merged by staff.
 `name`, `email`, `password_hash`, `role` (`super_admin` | `manager` | `receptionist` | `doctor`), `is_active`, `last_login_at`.
 The Super admin has `center_id = null`. All other users belong to exactly one center.
 
+### sessions
+`id` (SHA-256 of the session token; the token itself lives only in the HTTP-only cookie), `user_id`, `support_center_id` (Super admin support mode), `expires_at` (12-hour sliding lifetime), `user_agent`.
+
+### rate_limits
+`key` (e.g. failed logins per email or per IP), `count`, `window_start`. Used to block password guessing: 5 failures per email or 20 per IP in 15 minutes.
+
+### cash_day_closures
+`date`, `closed_by`, `closed_at`, `total`. When a manager closes a day, its payments are locked (§11.11).
+
 ### message_templates
 `key` (`confirmation` | `reminder` | `rescheduled` | `cancelled` | `request_followup`), `body_ar`, `body_en`.
 
@@ -423,6 +432,8 @@ The Arabic texts are drafts; the center should review them.
 - A privacy notice on the website, and patient consent at booking (a checkbox with a link).
 
 ## 16. Delivery plan (estimate)
+
+**Progress:** M0 is done. The monorepo, Cloudflare configuration, full database schema and first migration, staff sign-in (sessions, rate limiting, CSRF protection, audit log), the bilingual dashboard shell and the website shell are built, with automated tests and CI.
 
 | Milestone | Content | Estimate |
 |---|---|---|

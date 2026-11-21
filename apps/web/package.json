@@ -1,0 +1,29 @@
+{
+  "name": "@mc/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "astro check",
+    "test": "vitest run --passWithNoTests",
+    "deploy:staging": "astro build && wrangler deploy --env staging",
+    "deploy:production": "astro build && wrangler deploy --env production"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^14.4.0",
+    "@mc/shared": "workspace:*",
+    "astro": "^7.4.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.6",
+    "@cloudflare/workers-types": "^5.20261101.0",
+    "@tailwindcss/vite": "^4.3.0",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.0",
+    "wrangler": "^4.160.0"
+  }
+}

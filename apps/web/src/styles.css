@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  /* System fonts only: fast on slow mobile connections, no third-party requests. */
+  --font-sans: system-ui, "Segoe UI", Tahoma, "Noto Sans Arabic", "Geeza Pro", Arial, sans-serif;
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+  --color-brand-800: #115e59;
+}
