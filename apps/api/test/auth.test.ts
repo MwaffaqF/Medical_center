@@ -23,7 +23,7 @@ describe("auth", () => {
 
     const me = await call("/api/auth/me", { cookie });
     expect(me.status).toBe(200);
-    expect(await me.json()).toMatchObject({ user: { email: "rec@test.sy", role: "receptionist", centerId: center.id } });
+    expect(await me.json()).toMatchObject({ user: { email: "rec@test.sy", role: "receptionist", centerId: center.id }, restriction: null });
   });
 
   it("rejects a wrong password with a generic error", async () => {
@@ -59,7 +59,7 @@ describe("auth", () => {
     const { res, cookie } = await login("root@test.sy", "pw-1234567");
     expect(res.status).toBe(200);
     const me = await (await call("/api/auth/me", { cookie })).json();
-    expect(me).toMatchObject({ user: { role: "super_admin", centerId: null, supportCenterId: null } });
+    expect(me).toMatchObject({ user: { role: "super_admin", centerId: null, supportCenterId: null }, restriction: "mfa_setup" });
   });
 
   it("throttles after 5 failed attempts for the same email", async () => {

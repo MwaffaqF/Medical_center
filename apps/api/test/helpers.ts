@@ -39,3 +39,26 @@ export async function login(email: string, password: string) {
   const cookie = setCookie.split(";")[0] ?? "";
   return { res, cookie };
 }
+
+/** Signs in a super admin, including two-factor setup on first sign-in. Returns a usable cookie. */
+export async function loginSuperAdmin(email = `root-${crypto.randomUUID().slice(0, 6)}@test.sy`, password = "root-password-1") {
+  const { currentStep, totpAt } = await import("../src/lib/totp");
+  await createUser({ email, password, role: "super_admin", centerId: null });
+  const { cookie } = await login(email, password);
+  const setup = (await (await call("/api/auth/mfa/setup", { method: "POST", body: "{}", cookie })).json()) as { secret: string };
+  const code = await totpAt(setup.secret, currentStep());
+  const res = await call("/api/auth/mfa/verify", { method: "POST", body: JSON.stringify({ code }), cookie });
+  if (res.status !== 200) throw new Error(`mfa verify failed: ${res.status}`);
+  return { cookie, secret: setup.secret, email, password };
+}
+
+/** Creates a center plus a signed-in manager. */
+export async function managerSession() {
+  const center = await createCenter();
+  const email = `mgr-${crypto.randomUUID().slice(0, 6)}@test.sy`;
+  await createUser({ email, password: "manager-pass", role: "manager", centerId: center.id });
+  const { cookie } = await login(email, "manager-pass");
+  return { center, cookie };
+}
+
+export const json = (body: unknown) => JSON.stringify(body);

@@ -80,7 +80,14 @@ export const users = sqliteTable(
     role: text("role", { enum: ROLES }).notNull(),
     preferredLocale: text("preferred_locale", { enum: LOCALES }).notNull().default("ar"),
     isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+    /** TOTP secret (encrypted with SECRETS_KEY), set once two-factor setup is confirmed. */
     totpSecret: text("totp_secret"),
+    /** Secret generated during setup, waiting for the first valid code. */
+    totpPendingSecret: text("totp_pending_secret"),
+    /** Last accepted TOTP time step; blocks replay of the same code. */
+    totpLastStep: integer("totp_last_step"),
+    /** Set when an admin created the account or reset its password; user must choose a new one. */
+    mustChangePassword: integer("must_change_password", { mode: "boolean" }).notNull().default(false),
     lastLoginAt: integer("last_login_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -98,6 +105,8 @@ export const sessions = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     /** Super admin support mode: the center being accessed. */
     supportCenterId: text("support_center_id").references(() => centers.id, { onDelete: "set null" }),
+    /** Super admin sessions start true and become usable only after a valid TOTP code. */
+    mfaPending: integer("mfa_pending", { mode: "boolean" }).notNull().default(false),
     expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
     createdAt: createdAt(),
     userAgent: text("user_agent"),
