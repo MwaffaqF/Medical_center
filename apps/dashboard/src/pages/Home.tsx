@@ -1,39 +1,66 @@
-import { useNavigate } from "react-router";
-import type { SessionUser } from "@mc/shared";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router";
+import type { MessageKey, SessionUser } from "@mc/shared";
 import { api } from "../api";
-import { useSetMe } from "../auth";
-import { LanguageSwitch, useI18n } from "../i18n";
+import { useI18n } from "../i18n";
+import { Card, PageHeader } from "../ui";
 
-/** Placeholder home. The Today screen (spec §11.1) replaces it in milestone M4. */
+/** Center home. The Today screen (spec §11.1) replaces most of this in milestone M4. */
 export function HomePage({ user }: { user: SessionUser }) {
   const { t } = useI18n();
-  const navigate = useNavigate();
-  const setMe = useSetMe();
+  const canConfigure = user.role === "manager" || user.role === "super_admin";
+  return (
+    <>
+      <PageHeader title={t("dashboard.welcome", { name: user.name })} />
+      <div className="space-y-6">
+        {canConfigure && <SetupChecklist />}
+        <Card>
+          <p className="text-slate-600">{t("home.receptionSoon")}</p>
+        </Card>
+      </div>
+    </>
+  );
+}
 
-  async function logout() {
-    await api.logout().catch(() => undefined);
-    setMe(null);
-    navigate("/login", { replace: true });
-  }
+function SetupChecklist() {
+  const { t } = useI18n();
+  const settings = useQuery({ queryKey: ["center", "settings"], queryFn: api.center.settings });
+  const specialties = useQuery({ queryKey: ["center", "specialties"], queryFn: api.center.specialties });
+  const doctors = useQuery({ queryKey: ["center", "doctors"], queryFn: api.center.doctors });
+  const staff = useQuery({ queryKey: ["center", "users"], queryFn: api.center.users });
+
+  const c = settings.data?.center;
+  const docs = doctors.data?.doctors ?? [];
+  const steps: { label: MessageKey; done: boolean; to: string }[] = [
+    { label: "home.step.settings", done: !!(c?.whatsappPhone && c.addressAr && c.mapUrl), to: "/settings" },
+    { label: "home.step.specialties", done: (specialties.data?.specialties.length ?? 0) > 0, to: "/specialties" },
+    { label: "home.step.doctors", done: docs.length > 0 && docs.every((d) => d.photoUrl), to: "/doctors" },
+    { label: "home.step.services", done: docs.length > 0 && docs.every((d) => d.services.some((s) => s.isActive)), to: "/doctors" },
+    { label: "home.step.staff", done: (staff.data?.users ?? []).some((u) => u.role === "receptionist"), to: "/staff" },
+  ];
+  const doneCount = steps.filter((s) => s.done).length;
+  const loaded = [settings, specialties, doctors, staff].every((q) => q.isSuccess);
+  if (!loaded) return null;
 
   return (
-    <div className="min-h-dvh">
-      <header className="flex items-center justify-between gap-2 border-b border-slate-200 bg-white px-4 py-3">
-        <div className="flex items-center gap-2">
-          <img src="/icon.svg" alt="" className="size-8" />
-          <span className="font-semibold">{t("app.name")}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <LanguageSwitch />
-          <button type="button" onClick={logout} className="rounded-md px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">
-            {t("common.logout")}
-          </button>
-        </div>
-      </header>
-      <main className="mx-auto max-w-5xl px-4 py-8">
-        <h1 className="text-2xl font-semibold">{t("dashboard.welcome", { name: user.name })}</h1>
-        <p className="mt-1 text-slate-600">{t("dashboard.role", { role: t(`role.${user.role}`) })}</p>
-      </main>
-    </div>
+    <Card title={`${t("home.setupChecklist")} · ${doneCount}/${steps.length}`}>
+      <ol className="space-y-2">
+        {steps.map((s) => (
+          <li key={s.label}>
+            <Link to={s.to} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-slate-50">
+              <span
+                className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  s.done ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-500"
+                }`}
+                aria-hidden
+              >
+                {s.done ? "✓" : ""}
+              </span>
+              <span className={s.done ? "text-slate-500 line-through" : ""}>{t(s.label)}</span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </Card>
   );
 }

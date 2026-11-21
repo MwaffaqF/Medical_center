@@ -342,7 +342,7 @@ The system has a clear **frontend / backend split**, in one repository:
 | Database | **Cloudflare D1** (SQLite) through **Drizzle ORM** and migrations | Drizzle keeps a later move to PostgreSQL (through Hyperdrive) possible. |
 | File storage | **Cloudflare R2**: doctor photos, logos, images (resized before upload) | |
 | Bot protection | **Cloudflare Turnstile** on the public booking and request forms | Free. |
-| Staff authentication | Email and password, hashed with PBKDF2 (native Web Crypto, so it stays within the CPU limit). Secure, HTTP-only session cookies. TOTP two-factor for the Super admin. | |
+| Staff authentication | Email and password, hashed with PBKDF2 (native Web Crypto, so it stays within the CPU limit). Secure, HTTP-only session cookies. TOTP two-factor for the Super admin, with the secret encrypted (AES-GCM) by a Worker secret. Temporary passwords must be changed at first sign-in. | |
 | Scheduled jobs | Cron Triggers: daily database export to R2, highlighting stale pending items | |
 | Backups | D1 Time Travel (7 days on Free, 30 on Paid) plus a daily export to R2 | |
 | Environments | `staging` and `production` (separate D1 and R2 resources) | |
@@ -433,7 +433,10 @@ The Arabic texts are drafts; the center should review them.
 
 ## 16. Delivery plan (estimate)
 
-**Progress:** M0 is done. The monorepo, Cloudflare configuration, full database schema and first migration, staff sign-in (sessions, rate limiting, CSRF protection, audit log), the bilingual dashboard shell and the website shell are built, with automated tests and CI.
+**Progress:** M0 and M1 are done.
+
+- **M1:** the platform console (centers, center users, support mode with audit flag, activity log, TOTP two-factor for the Super admin), forced password change for temporary passwords, and center configuration: settings, logo, WhatsApp templates, staff accounts, specialties, doctors with photos, and booking types with length and price per doctor. The "platform health" usage panel (§11.13) is deferred: it needs the Cloudflare API and a token, and the Cloudflare dashboard already shows usage.
+- **M0:** The monorepo, Cloudflare configuration, full database schema and first migration, staff sign-in (sessions, rate limiting, CSRF protection, audit log), the bilingual dashboard shell and the website shell are built, with automated tests and CI.
 
 | Milestone | Content | Estimate |
 |---|---|---|

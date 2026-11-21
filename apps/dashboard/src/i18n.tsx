@@ -1,10 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { DEFAULT_LOCALE, localeDir, t as translate, type Locale, type MessageKey } from "@mc/shared";
+import { DEFAULT_LOCALE, localeDir, messages, t as translate, type Locale, type MessageKey } from "@mc/shared";
 
 type I18n = {
   locale: Locale;
   setLocale: (l: Locale) => void;
   t: (key: MessageKey, vars?: Record<string, string | number>) => string;
+  /** Translate a key built at runtime (e.g. `error.${code}`); returns `fallback` if the key doesn't exist. */
+  tx: (key: string, fallback?: string) => string;
+  /** Pick the Arabic or English value of a bilingual field, falling back to the other language. */
+  pick: (ar: string | null | undefined, en: string | null | undefined) => string;
 };
 
 const I18nContext = createContext<I18n | null>(null);
@@ -39,7 +43,13 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<I18n>(
-    () => ({ locale, setLocale, t: (key, vars) => translate(locale, key, vars) }),
+    () => ({
+      locale,
+      setLocale,
+      t: (key, vars) => translate(locale, key, vars),
+      tx: (key, fallback) => (key in messages[locale] ? translate(locale, key as MessageKey) : (fallback ?? key)),
+      pick: (ar, en) => (locale === "ar" ? ar || en : en || ar) ?? "",
+    }),
     [locale, setLocale],
   );
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

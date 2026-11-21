@@ -24,6 +24,7 @@ packages/
 
 ```sh
 pnpm install
+cp apps/api/.dev.vars.example apps/api/.dev.vars   # then put a key in SECRETS_KEY (command in the file)
 pnpm db:migrate:local          # create the local D1 database
 pnpm db:seed:local             # super admin + pilot center + manager + receptionist; prints passwords
 
@@ -48,15 +49,33 @@ pnpm test        # API tests run inside the Workers runtime against a real local
 2. `pnpm --filter @mc/api db:generate` to create a migration in `apps/api/migrations/`.
 3. `pnpm db:migrate:local` and commit the migration. CI fails if the schema and migrations disagree.
 
+## Accounts and sign-in
+
+- **Super admin** (platform owner): signs in at the dashboard, then must set up two-factor sign-in with an authenticator app on first sign-in, and enter a 6-digit code at every sign-in after that.
+- **Center staff** are created by the super admin (first manager) or by the center's manager. They get a one-time password and must choose their own at first sign-in.
+- After 5 wrong passwords for an email (or 20 from one network) within 15 minutes, sign-in is paused for that email or network.
+
+**Lost the authenticator phone?** Reset two-factor for the super admin from a terminal, then sign in and set it up again:
+
+```sh
+cd apps/api
+npx wrangler d1 execute DB --remote --env production \
+  --command "UPDATE users SET totp_secret=NULL, totp_pending_secret=NULL, totp_last_step=NULL WHERE role='super_admin' AND email='you@example.com'"
+```
+
 ## Deploying (first time)
 
 ```sh
 cd apps/api
 npx wrangler login
-npx wrangler d1 create medical-center-staging      # put the id into wrangler.jsonc (env.staging)
+npx wrangler d1 create medical-center-staging            # put the id into wrangler.jsonc (env.staging)
+npx wrangler r2 bucket create medical-center-media-staging
+npx wrangler secret put SECRETS_KEY --env staging        # paste a new key (see .dev.vars.example)
 npx wrangler d1 migrations apply DB --remote --env staging
 SEED_SUPERADMIN_EMAIL=you@example.com SEED_SUPERADMIN_PASSWORD='a-long-password' node scripts/seed.ts --env staging
 pnpm --filter @mc/dashboard build && pnpm deploy:staging
 ```
+
+Keep `SECRETS_KEY` safe: it encrypts the two-factor secrets. If it is lost, reset two-factor as described above.
 
 The website deploys with `pnpm --filter @mc/web deploy:staging`.
