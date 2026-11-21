@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft v0.1 — for review with center management |
+| **Status** | Draft v0.2 — for review with center management |
 | **Date** | 2026-11-21 |
 | **Scope** | MVP / pilot for the first center |
 
@@ -48,13 +48,16 @@ This causes double bookings, lost requests in chat history, repeated questions f
 | D8 | Availability uses **per-date availability sessions**, not a weekly template | Fits on-call doctors. A "copy previous week" shortcut is provided. |
 | D9 | **Every doctor** can be booked online | If a doctor has no published session, the patient sends a *booking request* instead. |
 | D10 | WhatsApp in the MVP = **click-to-chat links** (`wa.me`) | The Meta WhatsApp Cloud API comes in Phase 2, behind the same notification module. |
-| D11 | Hosting on **Cloudflare** | Workers, D1, R2 and Turnstile. See §12. |
+| D11 | Hosting on the **Cloudflare Free plan** for the MVP and pilot | Workers, D1, R2 and Turnstile. Upgrade to Workers Paid (USD 5/month) before or soon after go-live. See §12.4. |
 | D12 | The system is run by **receptionists** | The center manager configures it; doctors get read-only access (optional). |
+| D13 | A **Super admin** (platform owner) level exists from the MVP | Manages centers, center users and support access. See §11.13. |
+| D14 | Stack: **Astro** (public website), **React SPA** (dashboard), **Hono API** on Workers | Clear frontend/backend split, light enough for the Free plan, and the API is reusable by the future mobile app. See §12. |
 
 ## 4. Users and roles
 
 | Role | Who | Can do |
 |---|---|---|
+| **Super admin** | Platform owner (you) | Everything, across all centers: create, suspend and configure centers; manage center users; support access to any center (logged); platform settings and health |
 | **Patient** (no login) | Public | Browse the website, book a slot, send a booking request, contact the center on WhatsApp |
 | **Receptionist** | Front desk | Manage appointments and requests, patients, availability sessions, check-in, payments, WhatsApp messages |
 | **Manager** | Center management | Everything a receptionist can do, plus specialties, doctors, booking types, center settings, users and all reports |
@@ -76,6 +79,8 @@ This causes double bookings, lost requests in chat history, repeated questions f
 | Daily cash report | own | all | — |
 | Other reports | — | ✅ | — |
 
+The **Super admin** has every capability in every center, plus the platform console (§11.13). Each support action inside a center is recorded in the audit log as a support action.
+
 ## 5. Core concepts
 
 - **Specialty**: for example Dermatology or Pediatrics. Bilingual name, description and icon.
@@ -91,7 +96,7 @@ This causes double bookings, lost requests in chat history, repeated questions f
 All tables carry `id`, `center_id`, `created_at` and `updated_at`. Times are stored in UTC and displayed in the center's time zone. Bilingual fields come in pairs (`*_ar`, `*_en`).
 
 ### centers
-`name_ar`, `name_en`, `slug`, `logo_url`, `phone`, `whatsapp_phone`, `address_ar`, `address_en`, `map_url`, `timezone`, `default_country_code`, `opening_hours_ar`, `opening_hours_en`, `about_ar`, `about_en`, booking rules (`slot_step_minutes`, `min_lead_minutes`, `max_advance_days`), `default_language`.
+`name_ar`, `name_en`, `slug`, `status` (`active` | `suspended`), `logo_url`, `phone`, `whatsapp_phone`, `address_ar`, `address_en`, `map_url`, `timezone`, `default_country_code`, `opening_hours_ar`, `opening_hours_en`, `about_ar`, `about_en`, booking rules (`slot_step_minutes`, `min_lead_minutes`, `max_advance_days`), `default_language`.
 
 ### specialties
 `name_ar`, `name_en`, `slug`, `description_ar`, `description_en`, `icon`, `sort_order`, `is_active`.
@@ -124,7 +129,8 @@ Index on `phone`. Duplicates (same phone and name) can be merged by staff.
 `appointment_id`, `amount`, `method` (`cash` only in the MVP), `received_by`, `received_at`, `note` (e.g. the reason for a discount).
 
 ### users (staff)
-`name`, `email`, `password_hash`, `role` (`manager` | `receptionist` | `doctor`), `is_active`, `last_login_at`.
+`name`, `email`, `password_hash`, `role` (`super_admin` | `manager` | `receptionist` | `doctor`), `is_active`, `last_login_at`.
+The Super admin has `center_id = null`. All other users belong to exactly one center.
 
 ### message_templates
 `key` (`confirmation` | `reminder` | `rescheduled` | `cancelled` | `request_followup`), `body_ar`, `body_en`.
@@ -134,7 +140,7 @@ Index on `phone`. Duplicates (same phone and name) can be merged by staff.
 Click-to-chat can't confirm delivery, so this only records that staff opened the message.
 
 ### audit_log
-`user_id`, `entity`, `entity_id`, `action`, `changes` (JSON), `at`.
+`user_id`, `entity`, `entity_id`, `action`, `changes` (JSON), `is_support_action` (true when done by the Super admin inside a center), `at`.
 
 ## 7. Appointment lifecycle
 
@@ -270,38 +276,103 @@ Create, edit, reorder and deactivate.
 ### 11.12 Doctor view (optional)
 A read-only list of the doctor's own appointments for today and upcoming days.
 
-## 12. Technical architecture (Cloudflare)
+### 11.13 Platform console (Super admin)
+A separate area (`/admin`) for the Super admin only.
+- **Centers**: list, create, edit, suspend or reactivate. A suspended center's website shows a notice, and its staff can't log in.
+- **Center users**: create the first manager account for a center, reset passwords, deactivate users.
+- **Support access**: "Open center as support" opens that center's dashboard with full rights. A visible banner shows that support mode is on, and every action is logged with `is_support_action = true`.
+- **Activity**: recent logins, audit log across centers, support-access history.
+- **Platform health**: error log, daily usage against the Cloudflare plan limits (requests, database reads and writes).
 
-| Layer | Choice |
+Security rules:
+- The Super admin login requires two-factor authentication (an authenticator app, TOTP).
+- The center's agreement and privacy notice must state that the platform provider can access data for support.
+
+## 12. Technical architecture (Cloudflare Free plan)
+
+### 12.1 Overview
+
+The system has a clear **frontend / backend split**, in one repository:
+
+```
+ Patients (phone browser)        Staff (tablet / PC / phone)
+          │                                  │
+          ▼                                  ▼
+ ┌──────────────────────┐        ┌────────────────────────┐
+ │  Public website      │        │  Dashboard (React SPA) │
+ │  Astro + React       │        │  reception, manager,   │
+ │  islands             │        │  doctor, /admin        │
+ │  (server-rendered,   │        │  (static files)        │
+ │   SEO)               │        │                        │
+ └──────────┬───────────┘        └───────────┬────────────┘
+            │       JSON over HTTPS          │
+            └──────────────┬─────────────────┘
+                           ▼
+              ┌──────────────────────────┐
+              │  Backend API (Hono)      │  ◄── future mobile app
+              │  Cloudflare Workers      │
+              │  auth, roles, booking    │
+              │  rules, notifications    │
+              └─────┬──────────┬─────────┘
+                    ▼          ▼
+               D1 (database)  R2 (images)
+```
+
+### 12.2 Components
+
+| Part | Technology | Why |
+|---|---|---|
+| **Public website** (frontend) | **Astro**, with **React** "islands" for the interactive booking widget. Server-rendered on Workers, with caching. | Fast pages and good Google search results; ships very little JavaScript to phones. |
+| **Dashboard** (frontend) | **React + Vite** single-page app (TypeScript), with TanStack Query for data and React Router for screens | Rich interactive screens (calendar, queues). Built into static files, which Cloudflare serves for free and without counting toward request limits. |
+| **Backend API** | **Hono** (TypeScript) on Cloudflare Workers | A small, fast framework that fits the Free plan's 3 MB size and 10 ms CPU limits. All business rules live here. |
+| Shared code | A `packages/shared` workspace: types, validation schemas (Zod), translation keys | Frontend and backend use the same types and validation rules. |
+| UI | Tailwind CSS with RTL support (logical properties) and an accessible component library | |
+| Internationalisation | Arabic and English message files in `packages/shared`; `dir="rtl"` for Arabic; locale-aware dates, times and currency | |
+| Database | **Cloudflare D1** (SQLite) through **Drizzle ORM** and migrations | Drizzle keeps a later move to PostgreSQL (through Hyperdrive) possible. |
+| File storage | **Cloudflare R2**: doctor photos, logos, images (resized before upload) | |
+| Bot protection | **Cloudflare Turnstile** on the public booking and request forms | Free. |
+| Staff authentication | Email and password, hashed with PBKDF2 (native Web Crypto, so it stays within the CPU limit). Secure, HTTP-only session cookies. TOTP two-factor for the Super admin. | |
+| Scheduled jobs | Cron Triggers: daily database export to R2, highlighting stale pending items | |
+| Backups | D1 Time Travel (7 days on Free, 30 on Paid) plus a daily export to R2 | |
+| Environments | `staging` and `production` (separate D1 and R2 resources) | |
+| CI/CD | GitHub Actions: lint, type-check, tests, deploy with Wrangler | |
+
+**Why not Next.js:** Next.js is a full-stack framework (frontend and backend in one). On the Cloudflare Free plan, its bundle can exceed the 3 MB Worker size limit, and server rendering can exceed the 10 ms CPU limit. The split above stays well inside both limits and keeps the API independent for the mobile app.
+
+### 12.3 Code structure (planned)
+
+```
+/apps
+  /web          Astro public website (specialties, doctors, booking widget)
+  /dashboard    React SPA (reception, manager, doctor view, /admin console)
+  /api          Hono backend on Workers
+    /routes       public, staff, admin endpoints
+    /domain       booking rules: slot calculation, status transitions, re-visit check
+    /notify       notification module (WhatsApp link builder now, Cloud API later)
+    /db           Drizzle schema and migrations
+/packages
+  /shared       types, Zod schemas, i18n messages (ar.json, en.json)
+```
+
+**API-first:** every screen in the website and dashboard works through the API, so a future mobile app reuses it unchanged.
+
+### 12.4 Cloudflare Free plan: limits and plan
+
+Limits that matter for this project (check Cloudflare's current pricing pages before launch):
+
+| Limit (Free) | Effect on this project |
 |---|---|
-| Framework | **Next.js** (App Router, TypeScript), deployed to **Cloudflare Workers** with the `@opennextjs/cloudflare` adapter. Fallback if the adapter causes problems: React Router or Hono on Workers. |
-| UI | Tailwind CSS with RTL support (logical properties) and an accessible component library |
-| Internationalisation | `next-intl`: Arabic and English, `dir="rtl"` for Arabic, locale-aware date, time and currency formats |
-| Database | **Cloudflare D1** (SQLite) through **Drizzle ORM** and migrations. Drizzle keeps a later move to PostgreSQL (through Hyperdrive) possible. |
-| File storage | **Cloudflare R2**: doctor photos, logo, images (resized before upload) |
-| Bot protection | **Cloudflare Turnstile** on the public booking and request forms |
-| Rate limiting | Cloudflare rate-limiting rules plus per-phone limits in the app |
-| Staff authentication | Email and password with secure, HTTP-only session cookies (e.g. Better Auth with D1), role-based access checks on the server |
-| Scheduled jobs | Cron Triggers: daily database export to R2, highlighting stale pending items. Later: WhatsApp API reminders. |
-| Backups | D1 Time Travel (point-in-time restore) plus a daily export to R2 |
-| Environments | `staging` and `production` (separate D1 and R2 resources) |
-| CI/CD | GitHub Actions: lint, type-check, tests, deploy with Wrangler |
-| Monitoring | Cloudflare Workers logs and analytics, plus error tracking |
+| 100,000 Worker requests per day | Plenty for one center. Static files (dashboard, images through the CDN) don't count. |
+| 10 ms CPU per request | Fine for a lean Hono API. Waiting on the database doesn't count. Heavy work such as password hashing is designed to stay within it. |
+| 3 MB Worker size (compressed) | Fine for Hono and Astro; this is the main reason not to use Next.js. |
+| 50 database queries per request | Endpoints are designed to stay well below this. |
+| D1 daily read and write quotas | Well above one center's needs. **When a daily quota is used up, the database stops answering until the reset (midnight UTC).** |
+| D1 Time Travel: 7 days | Combined with the daily export to R2. |
+| No uptime guarantee (SLA) | Acceptable for a pilot. |
 
-### Code structure (planned)
-```
-/app
-  /[locale]/(public)/...     public website
-  /[locale]/dashboard/...    staff dashboard
-  /api/...                   API routes (also used by the future mobile app)
-/src
-  /db        Drizzle schema and migrations
-  /domain    booking rules: slot calculation, status transitions, re-visit check
-  /notify    notification module (WhatsApp link builder now, Cloud API later)
-  /i18n      messages: ar.json, en.json
-```
+R2 may require a payment card on the account even while usage stays within the free allowance.
 
-**API-first:** the booking logic lives in `/src/domain` and is exposed through `/api`, so a future mobile app reuses it.
+**Recommendation:** develop and run the pilot on the Free plan. Move to **Workers Paid (USD 5 per month)** when real patients depend on it, mainly so that a usage spike can never make bookings fail. The code needs no changes for the upgrade.
 
 ## 13. WhatsApp (MVP: click-to-chat)
 
@@ -351,15 +422,15 @@ The Arabic texts are drafts; the center should review them.
 
 | Milestone | Content | Estimate |
 |---|---|---|
-| M0 | Project setup: repo, CI, Cloudflare environments, i18n/RTL base, auth, database schema | 1 week |
-| M1 | Configuration: specialties, doctors (profiles and photos), booking types and prices, center settings, users | 1.5 weeks |
+| M0 | Project setup: monorepo (web, dashboard, api, shared), CI, Cloudflare environments, i18n/RTL base, auth, database schema | 1 week |
+| M1 | Configuration: platform console (centers, center users, support access, 2FA), specialties, doctors (profiles and photos), booking types and prices, center settings, users | 2 weeks |
 | M2 | Availability planner and the slot engine (with tests) | 1 week |
 | M3 | Public website and the booking/request flow | 2 weeks |
 | M4 | Reception operations: Today screen, calendar, appointment panel, requests inbox, patients, WhatsApp links and templates | 2 weeks |
 | M5 | Cash payments, daily cash report, appointments report, audit log | 1 week |
 | M6 | Pilot preparation: real data entry with the center, staff training, acceptance testing, fixes, go-live | 1–2 weeks |
 
-**Total: about 9–10 weeks** for one developer. Faster with two.
+**Total: about 10–11 weeks** for one developer. Faster with two.
 
 ### Key acceptance criteria
 - A patient on a phone can book an available slot in Arabic or English in under 2 minutes.
@@ -386,5 +457,5 @@ The Arabic texts are drafts; the center should review them.
 ## 18. Out of scope for the MVP (future phases)
 
 - **Phase 2**: WhatsApp Cloud API (automatic confirmations and reminders, phone verification codes), WhatsApp booking chatbot, waiting list, patient reviews, richer analytics.
-- **Phase 3**: native mobile app, patient accounts (self-service reschedule and cancel requests), online payments and deposits, multiple branches, multi-center SaaS (center onboarding, platform admin, billing, custom domains).
+- **Phase 3**: native mobile app, patient accounts (self-service reschedule and cancel requests), online payments and deposits, multiple branches, multi-center SaaS (self-service center onboarding, subscription billing, custom domains; the Super admin console already exists from the MVP).
 - **Not planned without a separate compliance review**: medical records, prescriptions, lab results, video consultations.
