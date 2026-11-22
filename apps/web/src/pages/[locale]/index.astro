@@ -1,26 +1,280 @@
 ---
-import { LOCALES, t, type Locale } from "@mc/shared";
+import { waNumber } from "@mc/shared";
+import DoctorCard from "../../components/DoctorCard.astro";
+import Icon from "../../components/Icon.astro";
+import SectionHeading from "../../components/SectionHeading.astro";
+import SpecialtyCard from "../../components/SpecialtyCard.astro";
 import Base from "../../layouts/Base.astro";
+import { pick, t } from "../../i18n";
+import { getSite } from "../../lib/api";
+import { localeParam } from "../../lib/page";
 
-const locale = Astro.params.locale as Locale;
-if (!LOCALES.includes(locale)) return new Response(null, { status: 404 });
-
-// Placeholder home page. Specialties, doctors and booking arrive in milestone M3.
+const locale = localeParam(Astro.params.locale);
+if (!locale) return Astro.rewrite("/404");
+const site = await getSite();
+const { center, specialties, doctors } = site;
+const active = center.status === "active";
+const whatsapp = center.whatsappPhone ? `https://wa.me/${waNumber(center.whatsappPhone)}` : null;
+const about = pick(locale, center.aboutAr, center.aboutEn);
+const hours = pick(locale, center.openingHoursAr, center.openingHoursEn);
+const address = pick(locale, center.addressAr, center.addressEn);
+const featured = doctors.slice(0, 6);
+const faqs = [1, 2, 3, 4, 5, 6] as const;
+Astro.response.headers.set("Cache-Control", "public, max-age=60");
 ---
 
-<Base locale={locale} description={t(locale, "web.hero.subtitle")}>
-  <main>
-    <section class="bg-gradient-to-b from-brand-50 to-white">
-      <div class="mx-auto max-w-5xl px-4 py-16 sm:py-24">
-        <h1 class="max-w-2xl text-3xl font-bold leading-tight sm:text-5xl">{t(locale, "web.hero.title")}</h1>
-        <p class="mt-4 max-w-xl text-lg text-slate-600">{t(locale, "web.hero.subtitle")}</p>
+<Base locale={locale} site={site}>
+  <!-- ============ Hero ============ -->
+  <section class="relative overflow-hidden bg-gradient-to-b from-brand-50 via-white to-white">
+    <div class="pointer-events-none absolute -end-24 -top-24 size-96 rounded-full bg-brand-100/60 blur-3xl"></div>
+    <div class="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:py-20 lg:grid-cols-[1.2fr_1fr]">
+      <div>
+        <p class="mb-3 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-sm font-medium text-brand-800 ring-1 ring-brand-200">
+          <Icon name="stethoscope" class="size-4" />
+          {t(locale, "hero.kicker")}
+        </p>
+        <h1 class="text-3xl font-extrabold leading-tight sm:text-5xl">{t(locale, "hero.title")}</h1>
+        <p class="mt-4 max-w-xl text-lg text-slate-600">{t(locale, "hero.subtitle")}</p>
         <div class="mt-8 flex flex-wrap gap-3">
-          <span class="inline-flex items-center rounded-xl bg-brand-700 px-5 py-3 font-semibold text-white opacity-60">
-            {t(locale, "web.cta.book")}
-          </span>
+          {
+            active && (
+              <a href={`/${locale}/book`} class="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-6 py-3.5 text-base font-semibold text-white shadow-sm hover:bg-brand-800">
+                <Icon name="calendar" />
+                {t(locale, "hero.book")}
+              </a>
+            )
+          }
+          {
+            whatsapp && (
+              <a href={whatsapp} rel="noopener" class="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3.5 text-base font-semibold text-slate-800 ring-1 ring-slate-300 hover:bg-slate-50">
+                <Icon name="whatsapp" class="size-5 text-[#25D366]" />
+                {t(locale, "hero.whatsapp")}
+              </a>
+            )
+          }
         </div>
-        <p class="mt-3 text-sm text-slate-500">{t(locale, "web.comingSoon")}</p>
+        <ul class="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-700">
+          {
+            (["hero.point1", "hero.point2", "hero.point3"] as const).map((k) => (
+              <li class="flex items-center gap-1.5">
+                <Icon name="check" class="size-4 text-brand-600" />
+                {t(locale, k)}
+              </li>
+            ))
+          }
+        </ul>
       </div>
-    </section>
-  </main>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <p class="text-4xl font-extrabold text-brand-700">{specialties.length}</p>
+          <p class="mt-1 text-sm text-slate-600">{t(locale, "stats.specialties")}</p>
+        </div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <p class="text-4xl font-extrabold text-brand-700">{doctors.length}</p>
+          <p class="mt-1 text-sm text-slate-600">{t(locale, "stats.doctors")}</p>
+        </div>
+        {
+          hours && (
+            <div class="col-span-2 rounded-2xl bg-brand-800 p-5 text-white shadow-sm">
+              <p class="flex items-center gap-2 text-sm font-semibold text-brand-100">
+                <Icon name="clock" class="size-4" />
+                {t(locale, "stats.hours")}
+              </p>
+              <p class="mt-2 whitespace-pre-line text-sm leading-relaxed">{hours}</p>
+            </div>
+          )
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Specialties ============ -->
+  <section class="mx-auto max-w-6xl px-4 py-14" aria-labelledby="specialties-title">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <SectionHeading id="specialties-title" title={t(locale, "specialties.title")} subtitle={t(locale, "specialties.subtitle")} />
+      {specialties.length > 8 && <a href={`/${locale}/specialties`} class="mb-8 font-semibold text-brand-700 hover:underline">{t(locale, "specialties.all")}</a>}
+    </div>
+    {
+      specialties.length ? (
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {specialties.slice(0, 8).map((s) => (
+            <SpecialtyCard locale={locale} specialty={s} />
+          ))}
+        </div>
+      ) : (
+        <p class="text-slate-500">{t(locale, "specialties.empty")}</p>
+      )
+    }
+  </section>
+
+  <!-- ============ Doctors ============ -->
+  {
+    featured.length > 0 && (
+      <section class="bg-slate-50 py-14" aria-labelledby="doctors-title">
+        <div class="mx-auto max-w-6xl px-4">
+          <div class="flex flex-wrap items-end justify-between gap-3">
+            <SectionHeading id="doctors-title" title={t(locale, "doctors.title")} subtitle={t(locale, "doctors.subtitle")} />
+            <a href={`/${locale}/doctors`} class="mb-8 inline-flex items-center gap-1 font-semibold text-brand-700 hover:underline">
+              {t(locale, "doctors.viewAll")}
+              <Icon name="arrow" class="size-4 rtl:rotate-180" />
+            </a>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {featured.map((d) => (
+              <DoctorCard locale={locale} doctor={d} specialties={specialties} currency={center.currency} />
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  <!-- ============ For patients: how to book + good to know + FAQ ============ -->
+  <section id="patients" class="mx-auto max-w-6xl px-4 py-14" aria-labelledby="patients-title">
+    <SectionHeading id="patients-title" title={t(locale, "patients.title")} subtitle={t(locale, "patients.subtitle")} />
+
+    <h3 class="mb-4 text-lg font-semibold">{t(locale, "how.title")}</h3>
+    <ol class="grid gap-4 sm:grid-cols-3">
+      {
+        ([1, 2, 3] as const).map((n) => (
+          <li class="relative rounded-2xl bg-white p-5 ring-1 ring-slate-200">
+            <span class="flex size-10 items-center justify-center rounded-full bg-brand-700 text-lg font-bold text-white">{n}</span>
+            <p class="mt-3 font-semibold">{t(locale, `how.step${n}`)}</p>
+            <p class="mt-1 text-sm text-slate-600">{t(locale, `how.step${n}Text`)}</p>
+          </li>
+        ))
+      }
+    </ol>
+
+    <h3 class="mb-4 mt-12 text-lg font-semibold">{t(locale, "why.title")}</h3>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {
+        (
+          [
+            ["fast", "calendar"],
+            ["whatsapp", "whatsapp"],
+            ["cash", "cash"],
+            ["change", "edit"],
+          ] as const
+        ).map(([k, icon]) => (
+          <div class="rounded-2xl bg-brand-50/60 p-5">
+            <Icon name={icon} class="size-6 text-brand-700" />
+            <p class="mt-3 font-semibold">{t(locale, `why.${k}`)}</p>
+            <p class="mt-1 text-sm text-slate-600">{t(locale, `why.${k}Text`)}</p>
+          </div>
+        ))
+      }
+    </div>
+
+    <h3 class="mb-4 mt-12 text-lg font-semibold">{t(locale, "faq.title")}</h3>
+    <div class="divide-y divide-slate-200 rounded-2xl ring-1 ring-slate-200">
+      {
+        faqs.map((n) => (
+          <details class="group px-5">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 py-4 font-medium [&::-webkit-details-marker]:hidden">
+              {t(locale, `faq.q${n}`)}
+              <span class="text-xl text-brand-700 transition group-open:rotate-45">+</span>
+            </summary>
+            <p class="pb-4 text-slate-600">{t(locale, `faq.a${n}`)}</p>
+          </details>
+        ))
+      }
+    </div>
+  </section>
+
+  <!-- ============ About ============ -->
+  {
+    about && (
+      <section id="about" class="bg-slate-50 py-14" aria-labelledby="about-title">
+        <div class="mx-auto max-w-3xl px-4">
+          <SectionHeading id="about-title" title={t(locale, "about.title")} />
+          <div class="space-y-4 text-lg leading-relaxed text-slate-700">
+            {about.split(/\n{2,}/).map((p) => (
+              <p class="whitespace-pre-line">{p}</p>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+  {!about && <div id="about"></div>}
+
+  <!-- ============ Contact / visit us ============ -->
+  <section id="contact" class="mx-auto max-w-6xl px-4 py-14" aria-labelledby="contact-title">
+    <SectionHeading id="contact-title" title={t(locale, "contact.title")} />
+    <div class="grid gap-4 md:grid-cols-3">
+      {
+        address && (
+          <div class="rounded-2xl bg-white p-5 ring-1 ring-slate-200">
+            <p class="flex items-center gap-2 font-semibold">
+              <Icon name="pin" class="text-brand-700" />
+              {t(locale, "contact.address")}
+            </p>
+            <p class="mt-2 text-slate-600">{address}</p>
+            {center.mapUrl && (
+              <a href={center.mapUrl} rel="noopener" target="_blank" class="mt-3 inline-flex items-center gap-1 font-semibold text-brand-700 hover:underline">
+                {t(locale, "contact.directions")}
+                <Icon name="arrow" class="size-4 rtl:rotate-180" />
+              </a>
+            )}
+          </div>
+        )
+      }
+      {
+        hours && (
+          <div class="rounded-2xl bg-white p-5 ring-1 ring-slate-200">
+            <p class="flex items-center gap-2 font-semibold">
+              <Icon name="clock" class="text-brand-700" />
+              {t(locale, "contact.hours")}
+            </p>
+            <p class="mt-2 whitespace-pre-line text-slate-600">{hours}</p>
+          </div>
+        )
+      }
+      <div class="rounded-2xl bg-white p-5 ring-1 ring-slate-200">
+        <p class="flex items-center gap-2 font-semibold">
+          <Icon name="chat" class="text-brand-700" />
+          {t(locale, "footer.contact")}
+        </p>
+        <div class="mt-3 flex flex-col gap-2">
+          {
+            whatsapp && (
+              <a href={whatsapp} rel="noopener" class="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 font-semibold text-white">
+                <Icon name="whatsapp" />
+                {t(locale, "contact.whatsapp")}
+                <span dir="ltr" class="ms-auto text-sm font-normal">{center.whatsappPhone}</span>
+              </a>
+            )
+          }
+          {
+            center.phone && (
+              <a href={`tel:${center.phone}`} class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-slate-800 ring-1 ring-slate-300 hover:bg-slate-50">
+                <Icon name="phone" class="text-brand-700" />
+                {t(locale, "contact.call")}
+                <span dir="ltr" class="ms-auto text-sm font-normal">{center.phone}</span>
+              </a>
+            )
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Final call to action ============ -->
+  {
+    active && (
+      <section class="mx-auto max-w-6xl px-4">
+        <div class="flex flex-col items-start justify-between gap-6 rounded-3xl bg-brand-800 px-6 py-10 text-white sm:flex-row sm:items-center sm:px-10">
+          <div>
+            <h2 class="text-2xl font-bold">{t(locale, "cta.title")}</h2>
+            <p class="mt-1 text-brand-100">{t(locale, "cta.text")}</p>
+          </div>
+          <a href={`/${locale}/book`} class="rounded-xl bg-white px-6 py-3.5 font-semibold text-brand-800 hover:bg-brand-50">
+            {t(locale, "hero.book")}
+          </a>
+        </div>
+      </section>
+    )
+  }
 </Base>

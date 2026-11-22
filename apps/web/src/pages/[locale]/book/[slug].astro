@@ -1,0 +1,231 @@
+---
+import { todayIn, waNumber } from "@mc/shared";
+import DoctorAvatar from "../../../components/DoctorAvatar.astro";
+import Icon from "../../../components/Icon.astro";
+import Base from "../../../layouts/Base.astro";
+import { clientMessages, formatPrice, pick, t } from "../../../i18n";
+import { getSite, webEnv } from "../../../lib/api";
+import { localeParam } from "../../../lib/page";
+
+const locale = localeParam(Astro.params.locale);
+if (!locale) return Astro.rewrite("/404");
+const site = await getSite();
+const doctor = site.doctors.find((d) => d.slug === Astro.params.slug);
+if (!doctor) return Astro.rewrite("/404");
+if (site.center.status !== "active" || doctor.services.length === 0) return Astro.redirect(`/${locale}/doctors/${doctor.slug}`);
+
+const name = pick(locale, doctor.nameAr, doctor.nameEn);
+const spec = site.specialties.find((s) => s.id === doctor.primarySpecialtyId);
+const today = todayIn(site.center.timezone);
+const config = {
+  locale,
+  doctorId: doctor.id,
+  doctorName: name,
+  currency: site.center.currency,
+  timeZone: site.center.timezone,
+  today,
+  maxAdvanceDays: site.center.maxAdvanceDays,
+  turnstileSiteKey: webEnv.TURNSTILE_SITE_KEY || null,
+  whatsapp: site.center.whatsappPhone ? waNumber(site.center.whatsappPhone) : null,
+  messages: clientMessages(locale),
+  services: doctor.services.map((s) => ({ bookingType: s.bookingType, durationMinutes: s.durationMinutes, price: s.price })),
+};
+const inputClass = "w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/20 aria-invalid:border-red-400";
+const label = "mb-1 block text-sm font-medium";
+const consentHtml = t(locale, "book.consent", {
+  link: `<a href="/${locale}/privacy" target="_blank" class="font-medium text-brand-700 underline">${t(locale, "book.consentLink")}</a>`,
+});
+Astro.response.headers.set("Cache-Control", "no-store");
+---
+
+<Base locale={locale} site={site} title={`${t(locale, "book.title")} · ${name}`} hideFloatingWhatsapp>
+  <meta slot="head" name="robots" content="noindex" />
+  <div id="booking" class="mx-auto max-w-2xl px-4 py-8" data-config={JSON.stringify(config)}>
+    <!-- Doctor -->
+    <a href={`/${locale}/doctors/${doctor.slug}`} class="mb-6 flex items-center gap-4 rounded-2xl bg-brand-50 p-4">
+      <DoctorAvatar url={doctor.photoUrl} name={name} size="size-16" eager />
+      <span class="min-w-0">
+        <span class="block text-lg font-bold">{name}</span>
+        {spec && <span class="block text-sm font-medium text-brand-700">{pick(locale, spec.nameAr, spec.nameEn)}</span>}
+      </span>
+    </a>
+
+    <div id="flow">
+      <!-- 1. Appointment type -->
+      <fieldset class="mb-8">
+        <legend class="mb-3 flex items-center gap-2 text-lg font-semibold">
+          <span class="flex size-7 items-center justify-center rounded-full bg-brand-700 text-sm text-white">1</span>
+          {t(locale, "book.step.type")}
+        </legend>
+        <div class="grid gap-2">
+          {
+            doctor.services.map((s, i) => (
+              <label class="flex cursor-pointer items-center gap-3 rounded-2xl p-4 ring-1 ring-slate-200 has-[:checked]:bg-brand-50 has-[:checked]:ring-2 has-[:checked]:ring-brand-600">
+                <input type="radio" name="bookingType" value={s.bookingType} checked={i === 0} class="size-5 accent-brand-700" />
+                <span class="flex-1">
+                  <span class="block font-semibold">{t(locale, `booking.${s.bookingType}`)}</span>
+                  <span class="block text-sm text-slate-500">
+                    {t(locale, `booking.${s.bookingType}Hint`)} · {t(locale, "doctors.minutes", { n: s.durationMinutes })}
+                  </span>
+                </span>
+                <span class="font-semibold">{formatPrice(locale, s.price, site.center.currency)}</span>
+              </label>
+            ))
+          }
+        </div>
+      </fieldset>
+
+      <!-- 2. Day -->
+      <section class="mb-8" aria-live="polite">
+        <h2 class="mb-3 flex items-center gap-2 text-lg font-semibold">
+          <span class="flex size-7 items-center justify-center rounded-full bg-brand-700 text-sm text-white">2</span>
+          {t(locale, "book.step.date")}
+        </h2>
+        <p id="slot-alert" class="mb-3 rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 ring-1 ring-amber-200" role="alert" hidden></p>
+        <p id="dates-status" class="text-slate-500">{t(locale, "book.loading")}</p>
+        <div id="dates" class="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-2"></div>
+      </section>
+
+      <!-- 3. Time -->
+      <section id="time-step" class="mb-8" hidden>
+        <h2 class="mb-3 flex items-center gap-2 text-lg font-semibold">
+          <span class="flex size-7 items-center justify-center rounded-full bg-brand-700 text-sm text-white">3</span>
+          {t(locale, "book.step.time")}
+        </h2>
+        <div id="times" class="grid grid-cols-3 gap-2 sm:grid-cols-4"></div>
+      </section>
+
+      <p class="mb-8 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+        {t(locale, "book.requestInstead")}
+        <button type="button" id="open-request" class="ms-1 font-semibold text-brand-700 underline">{t(locale, "book.requestButton")}</button>
+      </p>
+
+      <!-- 4. Details -->
+      <form id="details" class="space-y-4" hidden novalidate>
+        <h2 class="flex items-center gap-2 text-lg font-semibold">
+          <span class="flex size-7 items-center justify-center rounded-full bg-brand-700 text-sm text-white">4</span>
+          {t(locale, "book.step.details")}
+        </h2>
+        <div class="flex items-start justify-between gap-3 rounded-2xl bg-brand-800 p-4 text-white">
+          <div>
+            <p id="summary-line" class="font-semibold"></p>
+            <p id="summary-when" class="text-brand-100"></p>
+            <p id="summary-fee" class="mt-1 text-sm text-brand-100"></p>
+          </div>
+          <button type="button" id="change-time" class="shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold hover:bg-white/20">
+            {t(locale, "book.change")}
+          </button>
+        </div>
+        <div>
+          <label class={label} for="fullName">{t(locale, "book.fullName")}</label>
+          <input id="fullName" name="fullName" class={inputClass} autocomplete="name" required minlength="2" maxlength="120" />
+          <p class="mt-1 text-sm text-red-600" data-error-for="fullName"></p>
+        </div>
+        <div>
+          <label class={label} for="phone">{t(locale, "book.phone")}</label>
+          <input id="phone" name="phone" type="tel" inputmode="tel" dir="ltr" class={inputClass} autocomplete="tel" required placeholder={t(locale, "book.phoneHint")} />
+          <p class="mt-1 text-sm text-red-600" data-error-for="phone"></p>
+        </div>
+        <div>
+          <label class={label} for="note">{t(locale, "book.note")} <span class="font-normal text-slate-400">({t(locale, "book.optional")})</span></label>
+          <textarea id="note" name="note" rows="2" maxlength="500" class={inputClass}></textarea>
+        </div>
+        <div>
+          <label class="flex items-start gap-3 text-sm">
+            <input type="checkbox" name="consent" class="mt-0.5 size-5 shrink-0 accent-brand-700" required />
+            <span set:html={consentHtml} />
+          </label>
+          <p class="mt-1 text-sm text-red-600" data-error-for="consent"></p>
+        </div>
+        <div class="turnstile"></div>
+        <p class="hidden rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-200" role="alert" data-form-error></p>
+        <button type="submit" class="w-full rounded-xl bg-brand-700 px-6 py-4 text-lg font-semibold text-white hover:bg-brand-800 disabled:opacity-60">
+          {t(locale, "book.submit")}
+        </button>
+      </form>
+    </div>
+
+    <!-- Booking request (no suitable time) -->
+    <form id="request" class="space-y-4" hidden novalidate>
+      <h2 class="text-xl font-semibold">{t(locale, "request.title")}</h2>
+      <p class="text-slate-600">{t(locale, "request.intro")}</p>
+      <div>
+        <label class={label} for="r-type">{t(locale, "book.step.type")}</label>
+        <select id="r-type" name="bookingType" class={inputClass}>
+          {doctor.services.map((s) => <option value={s.bookingType}>{t(locale, `booking.${s.bookingType}`)}</option>)}
+        </select>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label class={label} for="r-date">{t(locale, "request.date")} <span class="font-normal text-slate-400">({t(locale, "book.optional")})</span></label>
+          <input id="r-date" name="preferredDate" type="date" min={today} dir="ltr" class={inputClass} />
+        </div>
+        <div>
+          <label class={label} for="r-period">{t(locale, "request.period")}</label>
+          <select id="r-period" name="preferredPeriod" class={inputClass}>
+            {(["any", "morning", "afternoon", "evening"] as const).map((p) => <option value={p}>{t(locale, `request.period.${p}`)}</option>)}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class={label} for="r-name">{t(locale, "book.fullName")}</label>
+        <input id="r-name" name="fullName" class={inputClass} autocomplete="name" required />
+        <p class="mt-1 text-sm text-red-600" data-error-for="fullName"></p>
+      </div>
+      <div>
+        <label class={label} for="r-phone">{t(locale, "book.phone")}</label>
+        <input id="r-phone" name="phone" type="tel" inputmode="tel" dir="ltr" class={inputClass} autocomplete="tel" required placeholder={t(locale, "book.phoneHint")} />
+        <p class="mt-1 text-sm text-red-600" data-error-for="phone"></p>
+      </div>
+      <div>
+        <label class={label} for="r-note">{t(locale, "book.note")} <span class="font-normal text-slate-400">({t(locale, "book.optional")})</span></label>
+        <textarea id="r-note" name="note" rows="2" maxlength="500" class={inputClass}></textarea>
+      </div>
+      <div>
+        <label class="flex items-start gap-3 text-sm">
+          <input type="checkbox" name="consent" class="mt-0.5 size-5 shrink-0 accent-brand-700" required />
+          <span set:html={consentHtml} />
+        </label>
+        <p class="mt-1 text-sm text-red-600" data-error-for="consent"></p>
+      </div>
+      <div class="turnstile"></div>
+      <p class="hidden rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-200" role="alert" data-form-error></p>
+      <div class="flex flex-col gap-3 sm:flex-row-reverse">
+        <button type="submit" class="flex-1 rounded-xl bg-brand-700 px-6 py-4 text-lg font-semibold text-white hover:bg-brand-800 disabled:opacity-60">
+          {t(locale, "request.submit")}
+        </button>
+        <button type="button" id="close-request" class="rounded-xl px-6 py-4 font-semibold text-brand-700 ring-1 ring-brand-200">
+          {t(locale, "request.back")}
+        </button>
+      </div>
+    </form>
+
+    <!-- Success -->
+    <section id="done" class="text-center" hidden aria-live="polite">
+      <span class="mx-auto flex size-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+        <Icon name="check" class="size-9" />
+      </span>
+      <h2 id="done-title" class="mt-4 text-2xl font-bold"></h2>
+      <p id="done-text" class="mt-2 text-slate-600"></p>
+      <div class="mx-auto mt-6 max-w-sm rounded-2xl bg-slate-50 p-5 text-start ring-1 ring-slate-200">
+        <p class="text-sm text-slate-500">{t(locale, "book.reference")}</p>
+        <p id="done-ref" dir="ltr" class="text-start font-mono text-3xl font-bold tracking-widest"></p>
+        <p id="done-summary" class="mt-3 font-medium"></p>
+        <p id="done-when" class="text-slate-600"></p>
+        <p class="mt-3 text-sm text-slate-500">{t(locale, "book.keepReference")}</p>
+      </div>
+      <div class="mx-auto mt-6 flex max-w-sm flex-col gap-3">
+        <a id="done-whatsapp" hidden rel="noopener" class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-6 py-3.5 font-semibold text-white">
+          <Icon name="whatsapp" />
+          {t(locale, "book.whatsappUs")}
+        </a>
+        <a href={`/${locale}/book`} class="rounded-xl px-6 py-3.5 font-semibold text-brand-700 ring-1 ring-brand-200">{t(locale, "book.again")}</a>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    import { initBooking } from "../../../scripts/booking";
+    initBooking(document.getElementById("booking")!);
+  </script>
+</Base>

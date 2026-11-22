@@ -1,0 +1,59 @@
+---
+import DoctorCard from "../../../components/DoctorCard.astro";
+import SectionHeading from "../../../components/SectionHeading.astro";
+import Base from "../../../layouts/Base.astro";
+import { pick, t } from "../../../i18n";
+import { getSite } from "../../../lib/api";
+import { localeParam } from "../../../lib/page";
+
+const locale = localeParam(Astro.params.locale);
+if (!locale) return Astro.rewrite("/404");
+const site = await getSite();
+
+// Filters are plain query parameters: they work without JavaScript and can be shared as links.
+const specialtySlug = Astro.url.searchParams.get("specialty") ?? "";
+const gender = Astro.url.searchParams.get("gender") ?? "";
+const specialty = site.specialties.find((s) => s.slug === specialtySlug);
+const doctors = site.doctors.filter(
+  (d) => (!specialty || d.specialtyIds.includes(specialty.id)) && (gender !== "male" && gender !== "female" ? true : d.gender === gender),
+);
+const selectClass = "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base";
+Astro.response.headers.set("Cache-Control", "public, max-age=60");
+---
+
+<Base locale={locale} site={site} title={t(locale, "doctors.title")} description={t(locale, "doctors.subtitle")}>
+  <div class="mx-auto max-w-6xl px-4 py-12">
+    <SectionHeading title={t(locale, "doctors.title")} subtitle={t(locale, "doctors.subtitle")} />
+
+    <form method="get" class="mb-8 grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+      <label class="block">
+        <span class="mb-1 block text-sm font-medium">{t(locale, "doctors.filterSpecialty")}</span>
+        <select name="specialty" class={selectClass}>
+          <option value="">{t(locale, "doctors.any")}</option>
+          {site.specialties.map((s) => <option value={s.slug} selected={s.slug === specialtySlug}>{pick(locale, s.nameAr, s.nameEn)}</option>)}
+        </select>
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-sm font-medium">{t(locale, "doctors.filterGender")}</span>
+        <select name="gender" class={selectClass}>
+          <option value="">{t(locale, "doctors.any")}</option>
+          <option value="female" selected={gender === "female"}>{t(locale, "doctors.female")}</option>
+          <option value="male" selected={gender === "male"}>{t(locale, "doctors.male")}</option>
+        </select>
+      </label>
+      <button type="submit" class="rounded-xl bg-brand-700 px-6 py-2.5 font-semibold text-white hover:bg-brand-800">{t(locale, "doctors.filter")}</button>
+    </form>
+
+    {
+      doctors.length ? (
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {doctors.map((d) => (
+            <DoctorCard locale={locale} doctor={d} specialties={site.specialties} currency={site.center.currency} />
+          ))}
+        </div>
+      ) : (
+        <p class="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">{t(locale, "doctors.none")}</p>
+      )
+    }
+  </div>
+</Base>

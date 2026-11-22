@@ -433,7 +433,9 @@ The Arabic texts are drafts; the center should review them.
 
 ## 16. Delivery plan (estimate)
 
-**Progress:** M0, M1 and M2 are done.
+**Progress:** M0–M3 are done.
+
+- **M3:** the public website. A landing page with sections (hero with booking and WhatsApp buttons, specialties, featured doctors, a "For patients" section with how to book, good-to-know points and FAQ, about, visit us with address, hours, map and contact, and a closing call to action), header navigation with a no-JavaScript phone menu, footer, floating WhatsApp button, specialty and doctor pages with filters, the booking flow (type → day → time → details → reference code and WhatsApp link), booking requests when no time suits, privacy notice, 404, sitemap and robots. The public API serves only public fields, re-checks every slot, limits submissions per network and phone, and verifies Turnstile.
 
 - **M2:** the availability planner (per-doctor week view starting Saturday, add/edit/close/delete sessions, a warning that lists booked patients before a change affects them, copy previous week with a preview), the slot engine shared by the dashboard and the website, a reception slots endpoint, and the single-statement "book only if still free" insert that prevents double booking.
 

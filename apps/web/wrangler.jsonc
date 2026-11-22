@@ -1,15 +1,38 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  // Public website (Astro, server-rendered). Doctor and specialty data will come from the
-  // API Worker through a service binding in milestone M3.
+  // Public website (Astro, server-rendered). Data comes from the API Worker:
+  // through the API service binding when deployed, over HTTP (API_ORIGIN) locally.
   "name": "medical-center-web",
   "main": "@astrojs/cloudflare/entrypoints/server",
   "compatibility_date": "2026-11-01",
   "compatibility_flags": ["nodejs_compat"],
   "assets": { "binding": "ASSETS" },
   "observability": { "enabled": true },
+  "vars": {
+    "CENTER_SLUG": "pilot",
+    "API_ORIGIN": "http://localhost:8787",
+    // Public Turnstile site key. Empty = no bot check widget (development only).
+    "TURNSTILE_SITE_KEY": "",
+    "DASHBOARD_URL": "http://localhost:8787"
+  },
   "env": {
-    "staging": { "name": "medical-center-web-staging" },
-    "production": { "name": "medical-center-web" }
+    "staging": {
+      "name": "medical-center-web-staging",
+      "services": [{ "binding": "API", "service": "medical-center-app-staging" }],
+      "vars": {
+        "CENTER_SLUG": "pilot",
+        "TURNSTILE_SITE_KEY": "REPLACE_WITH_TURNSTILE_SITE_KEY",
+        "DASHBOARD_URL": "https://app-staging.example.com"
+      }
+    },
+    "production": {
+      "name": "medical-center-web",
+      "services": [{ "binding": "API", "service": "medical-center-app" }],
+      "vars": {
+        "CENTER_SLUG": "pilot",
+        "TURNSTILE_SITE_KEY": "REPLACE_WITH_TURNSTILE_SITE_KEY",
+        "DASHBOARD_URL": "https://app.example.com"
+      }
+    }
   }
 }

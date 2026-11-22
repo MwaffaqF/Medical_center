@@ -34,7 +34,7 @@ pnpm dev:api                   # API + built dashboard on http://localhost:8787
 
 For dashboard development with hot reload, run `pnpm dev:api` and `pnpm dev:dashboard` together, then open http://localhost:5173 (Vite forwards `/api` to the Worker).
 
-Public website: `pnpm dev:web` and open http://localhost:4321.
+Public website: keep `pnpm dev:api` running, then `pnpm dev:web` and open http://localhost:4321. Locally the website reads data from the API at `API_ORIGIN` (see `apps/web/wrangler.jsonc`); deployed, it uses a Cloudflare service binding. It shows the center whose slug is `CENTER_SLUG` (`pilot` by default).
 
 ## Checks
 
@@ -78,4 +78,7 @@ pnpm --filter @mc/dashboard build && pnpm deploy:staging
 
 Keep `SECRETS_KEY` safe: it encrypts the two-factor secrets. If it is lost, reset two-factor as described above.
 
-The website deploys with `pnpm --filter @mc/web deploy:staging`.
+The website deploys with `pnpm --filter @mc/web deploy:staging`. Before that:
+
+- Create a **Turnstile** widget in the Cloudflare dashboard for the website's domain. Put its site key in `TURNSTILE_SITE_KEY` (`apps/web/wrangler.jsonc`) and its secret in the API: `npx wrangler secret put TURNSTILE_SECRET --env staging` (in `apps/api`). Without the secret, production refuses online bookings.
+- Set `CENTER_SLUG` and `DASHBOARD_URL` for the environment, and deploy the API first: the website calls it through a service binding.

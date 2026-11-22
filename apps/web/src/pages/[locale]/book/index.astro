@@ -1,0 +1,63 @@
+---
+import DoctorAvatar from "../../../components/DoctorAvatar.astro";
+import Icon from "../../../components/Icon.astro";
+import Base from "../../../layouts/Base.astro";
+import { formatPrice, pick, t } from "../../../i18n";
+import { getSite } from "../../../lib/api";
+import { localeParam } from "../../../lib/page";
+
+const locale = localeParam(Astro.params.locale);
+if (!locale) return Astro.rewrite("/404");
+const site = await getSite();
+const bookable = site.doctors.filter((d) => d.services.length > 0);
+
+// Group doctors by their main specialty, in specialty order; doctors without one go last.
+const groups = site.specialties
+  .map((s) => ({ specialty: s, doctors: bookable.filter((d) => d.primarySpecialtyId === s.id) }))
+  .filter((g) => g.doctors.length);
+const other = bookable.filter((d) => !site.specialties.some((s) => s.id === d.primarySpecialtyId));
+Astro.response.headers.set("Cache-Control", "public, max-age=60");
+---
+
+<Base locale={locale} site={site} title={t(locale, "book.title")}>
+  <div class="mx-auto max-w-3xl px-4 py-10">
+    <h1 class="text-3xl font-bold">{t(locale, "book.title")}</h1>
+    <p class="mt-2 text-slate-600">{t(locale, "book.chooseDoctor")}</p>
+
+    {
+      site.center.status !== "active" ? null : bookable.length === 0 ? (
+        <p class="mt-8 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">{t(locale, "doctors.none")}</p>
+      ) : (
+        <div class="mt-8 space-y-8">
+          {[...groups, ...(other.length ? [{ specialty: null, doctors: other }] : [])].map((g) => (
+            <section>
+              {g.specialty && <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-brand-700">{pick(locale, g.specialty.nameAr, g.specialty.nameEn)}</h2>}
+              <ul class="space-y-3">
+                {g.doctors.map((d) => {
+                  const name = pick(locale, d.nameAr, d.nameEn);
+                  const from = Math.min(...d.services.map((s) => s.price));
+                  return (
+                    <li>
+                      <a
+                        href={`/${locale}/book/${d.slug}`}
+                        class="flex items-center gap-4 rounded-2xl bg-white p-4 ring-1 ring-slate-200 transition hover:shadow-md hover:ring-brand-600"
+                      >
+                        <DoctorAvatar url={d.photoUrl} name={name} size="size-14" />
+                        <span class="min-w-0 flex-1">
+                          <span class="block truncate font-semibold">{name}</span>
+                          <span class="block truncate text-sm text-slate-500">{pick(locale, d.titleAr, d.titleEn)}</span>
+                          <span class="mt-1 block text-sm text-slate-700">{formatPrice(locale, from, site.center.currency)}</span>
+                        </span>
+                        <Icon name="arrow" class="size-5 shrink-0 text-brand-700 rtl:rotate-180" />
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )
+    }
+  </div>
+</Base>

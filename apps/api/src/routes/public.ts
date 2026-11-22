@@ -56,7 +56,10 @@ export const publicRoutes = new Hono<AppEnv>()
     c.header("Cache-Control", PUBLIC_CACHE);
     return c.json({
       center: { ...publicCenter(center), status: center.status },
-      specialties: specs.map((s) => ({
+      // Only specialties that have at least one active doctor are shown publicly.
+      specialties: specs
+        .filter((s) => full.some((d) => d.specialtyIds.includes(s.id)))
+        .map((s) => ({
         id: s.id,
         slug: s.slug,
         nameAr: s.nameAr,
