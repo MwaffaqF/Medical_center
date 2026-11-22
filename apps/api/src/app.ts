@@ -8,6 +8,7 @@ import { loadSession, requireAuth, requireCenter } from "./middleware/auth";
 import { originGuard } from "./middleware/origin";
 import { adminRoutes } from "./routes/admin";
 import { authRoutes } from "./routes/auth";
+import { availabilityRoutes } from "./routes/center/availability";
 import { doctorRoutes } from "./routes/center/doctors";
 import { settingsRoutes } from "./routes/center/settings";
 import { specialtyRoutes } from "./routes/center/specialties";
@@ -43,6 +44,7 @@ app.route("/center", settingsRoutes);
 app.route("/center/users", centerUserRoutes);
 app.route("/center/specialties", specialtyRoutes);
 app.route("/center/doctors", doctorRoutes);
+app.route("/center/availability", availabilityRoutes);
 
 app.notFound((c) => c.json({ error: { code: "not_found" } }, 404));
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { BOOKING_TYPES, CENTER_STATUSES, LOCALES, MESSAGE_TEMPLATE_KEYS, ROLES } from "./enums";
 import { normalizePhone } from "./phone";
+import { daysBetween, isValidDate, isValidTime, timeToMinutes } from "./time";
 
 // ---------------------------------------------------------------- helpers
 
@@ -227,3 +228,54 @@ export type DoctorServicesInput = z.input<typeof doctorServicesSchema>;
 
 export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+
+// ---------------------------------------------------------------- availability (spec §8, §11.7)
+
+const dateSchema = z.string().refine(isValidDate, "invalid_date");
+const timeSchema = z.string().refine(isValidTime, "invalid_time");
+
+export const availabilityCreateSchema = z
+  .object({
+    doctorId: z.string().min(1),
+    date: dateSchema,
+    startTime: timeSchema,
+    endTime: timeSchema,
+    note: optionalText(300),
+  })
+  .refine((v) => !isValidTime(v.startTime) || !isValidTime(v.endTime) || timeToMinutes(v.endTime) > timeToMinutes(v.startTime), {
+    message: "end_before_start",
+    path: ["endTime"],
+  });
+export type AvailabilityCreateInput = z.input<typeof availabilityCreateSchema>;
+
+export const availabilityUpdateSchema = z.object({
+  startTime: timeSchema.optional(),
+  endTime: timeSchema.optional(),
+  status: z.enum(["open", "closed"]).optional(),
+  note: optionalText(300),
+  /** Apply even though booked appointments fall outside the new times (reception will contact them). */
+  confirm: z.boolean().default(false),
+});
+export type AvailabilityUpdateInput = z.input<typeof availabilityUpdateSchema>;
+
+export const availabilityQuerySchema = z
+  .object({ doctorId: z.string().optional(), from: dateSchema, to: dateSchema })
+  .refine((v) => !isValidDate(v.from) || !isValidDate(v.to) || (daysBetween(v.from, v.to) >= 0 && daysBetween(v.from, v.to) <= 62), {
+    message: "invalid_range",
+    path: ["to"],
+  });
+
+export const copyWeekSchema = z.object({
+  fromWeek: dateSchema,
+  toWeek: dateSchema,
+  /** Copy one doctor's sessions, or every doctor's when omitted. */
+  doctorId: z.string().min(1).optional(),
+  dryRun: z.boolean().default(true),
+});
+export type CopyWeekInput = z.input<typeof copyWeekSchema>;
+
+export const slotsQuerySchema = z.object({
+  bookingType: z.enum(BOOKING_TYPES),
+  from: dateSchema,
+  days: z.coerce.number().int().min(1).max(31).default(7),
+});
