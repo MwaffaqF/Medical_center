@@ -81,3 +81,49 @@ export async function insertAppointmentIfFree(db: Database, a: NewAppointment): 
   }
   throw new Error("could not allocate a reference code");
 }
+
+export type MoveAppointment = {
+  id: string;
+  doctorId: string;
+  sessionId: string | null;
+  startAt: number;
+  endAt: number;
+  bookingType: BookingType;
+  priceSnapshot: number;
+  status: AppointmentStatus;
+  isOverride: boolean;
+};
+
+/**
+ * Moves (or reopens) an appointment only if the new time is free — ignoring the appointment itself —
+ * in one statement, like insertAppointmentIfFree. Returns false if the time is taken.
+ */
+export async function updateAppointmentIfFree(db: Database, m: MoveAppointment): Promise<boolean> {
+  const override = m.isOverride ? 1 : 0;
+  const now = Date.now();
+  const row = await db.get<{ id: string } | undefined>(sql`
+    UPDATE appointments SET
+      session_id = ${m.sessionId}, start_at = ${m.startAt}, end_at = ${m.endAt},
+      booking_type = ${m.bookingType}, price_snapshot = ${m.priceSnapshot},
+      status = ${m.status}, is_override = ${override}, updated_at = ${now}
+    WHERE id = ${m.id}
+      AND (
+        ${override} = 1 OR NOT EXISTS (
+          SELECT 1 FROM appointments other
+          WHERE other.doctor_id = ${m.doctorId}
+            AND other.id <> ${m.id}
+            AND other.status IN (${blockingList})
+            AND other.start_at < ${m.endAt}
+            AND other.end_at > ${m.startAt}
+        )
+      )
+      AND (
+        ${override} = 1 OR EXISTS (
+          SELECT 1 FROM availability_sessions
+          WHERE id = ${m.sessionId} AND doctor_id = ${m.doctorId} AND status = 'open'
+        )
+      )
+    RETURNING id
+  `);
+  return !!row;
+}

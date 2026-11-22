@@ -22,8 +22,9 @@ describe("platform console: centers", () => {
     const dup = await call("/api/admin/centers", { method: "POST", cookie, body: json({ slug: "al-shifa", nameAr: "x", nameEn: "x" }) });
     expect(dup.status).toBe(409);
 
-    const list = (await (await call("/api/admin/centers", { cookie })).json()) as { centers: { slug: string }[] };
-    expect(list.centers.map((c) => c.slug)).toContain("al-shifa");
+    await call(`/api/admin/centers/${center.id}/users`, { method: "POST", cookie, body: json({ name: "M", email: "m@al-shifa.sy", role: "manager" }) });
+    const list = (await (await call("/api/admin/centers", { cookie })).json()) as { centers: { slug: string; userCount: number; doctorCount: number }[] };
+    expect(list.centers.find((c) => c.slug === "al-shifa")).toMatchObject({ userCount: 1, doctorCount: 0 });
   });
 
   it("validates input with field-level errors", async () => {

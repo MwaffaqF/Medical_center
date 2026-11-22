@@ -28,8 +28,9 @@ export const adminRoutes = new Hono<AppEnv>()
     const rows = await db
       .select({
         center: centers,
-        userCount: sql<number>`(select count(*) from ${users} where ${users.centerId} = ${centers.id})`,
-        doctorCount: sql<number>`(select count(*) from ${doctors} where ${doctors.centerId} = ${centers.id})`,
+        // Fully qualified: inside a subquery a bare "id" would refer to the inner table.
+        userCount: sql<number>`(select count(*) from users u where u.center_id = "centers"."id")`,
+        doctorCount: sql<number>`(select count(*) from doctors d where d.center_id = "centers"."id")`,
       })
       .from(centers)
       .orderBy(centers.nameEn);

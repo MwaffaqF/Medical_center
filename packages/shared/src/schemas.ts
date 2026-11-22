@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BOOKING_TYPES, CENTER_STATUSES, LOCALES, MESSAGE_TEMPLATE_KEYS, PREFERRED_PERIODS, ROLES } from "./enums";
+import { APPOINTMENT_STATUSES, BOOKING_TYPES, CENTER_STATUSES, LOCALES, MESSAGE_TEMPLATE_KEYS, PREFERRED_PERIODS, ROLES } from "./enums";
 import { normalizePhone } from "./phone";
 import { daysBetween, isValidDate, isValidTime, timeToMinutes } from "./time";
 
@@ -323,3 +323,72 @@ export const publicRequestSchema = z.object({
   ...patientFields,
 });
 export type PublicRequestInput = z.input<typeof publicRequestSchema>;
+
+// ---------------------------------------------------------------- reception (spec §11)
+
+export const newPatientSchema = z.object({
+  fullName: z.string().trim().min(2, "required").max(120),
+  phone: requiredPhone,
+  preferredLocale: z.enum(LOCALES).default("ar"),
+  gender: z.enum(["male", "female"]).nullish().transform((v) => v ?? null),
+  dateOfBirth: dateSchema.nullish().transform((v) => v ?? null),
+  notes: optionalText(1000),
+});
+export type NewPatientInput = z.input<typeof newPatientSchema>;
+export const patientUpdateSchema = newPatientSchema.partial();
+
+export const staffAppointmentSchema = z
+  .object({
+    patientId: z.string().min(1).optional(),
+    newPatient: newPatientSchema.optional(),
+    doctorId: z.string().min(1),
+    bookingType: z.enum(BOOKING_TYPES),
+    startAt: z.number().int().positive(),
+    source: z.enum(["whatsapp", "phone", "walk_in"]),
+    /** Walk-ins can be checked in straight away. */
+    status: z.enum(["confirmed", "checked_in"]).default("confirmed"),
+    /** Book outside a session or over another appointment (spec §8.6). Shown as a warning first. */
+    override: z.boolean().default(false),
+    internalNote: optionalText(1000),
+    /** When converting a booking request into this appointment. */
+    requestId: z.string().min(1).optional(),
+  })
+  .refine((v) => !!v.patientId !== !!v.newPatient, { message: "patient_required", path: ["patientId"] });
+export type StaffAppointmentInput = z.input<typeof staffAppointmentSchema>;
+
+export const statusActionSchema = z
+  .object({
+    action: z.enum(["confirm", "check_in", "complete", "no_show", "cancel", "reopen"]),
+    reason: optionalText(300),
+  })
+  .refine((v) => v.action !== "cancel" || !!v.reason, { message: "reason_required", path: ["reason"] });
+export type StatusActionInput = z.input<typeof statusActionSchema>;
+
+export const rescheduleSchema = z.object({
+  startAt: z.number().int().positive(),
+  bookingType: z.enum(BOOKING_TYPES).optional(),
+  override: z.boolean().default(false),
+});
+export type RescheduleInput = z.input<typeof rescheduleSchema>;
+
+export const appointmentUpdateSchema = z.object({ internalNote: optionalText(1000) });
+
+export const sendMessageSchema = z.object({ templateKey: z.enum(MESSAGE_TEMPLATE_KEYS) });
+
+export const appointmentsQuerySchema = z
+  .object({
+    from: dateSchema,
+    to: dateSchema,
+    doctorId: z.string().optional(),
+    status: z.enum(APPOINTMENT_STATUSES).optional(),
+  })
+  .refine((v) => !isValidDate(v.from) || !isValidDate(v.to) || (daysBetween(v.from, v.to) >= 0 && daysBetween(v.from, v.to) <= 62), {
+    message: "invalid_range",
+    path: ["to"],
+  });
+
+export const requestUpdateSchema = z.object({ status: z.enum(["new", "contacted", "declined"]) });
+
+export const patientsQuerySchema = z.object({ q: z.string().trim().max(60).default("") });
+
+export const mergePatientsSchema = z.object({ intoId: z.string().min(1) });
