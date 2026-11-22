@@ -11,6 +11,7 @@ import { CenterDetailPage } from "./pages/admin/CenterDetail";
 import { CentersPage } from "./pages/admin/Centers";
 import { AccountPasswordPage, ForcedPasswordPage } from "./pages/auth/ChangePassword";
 import { MfaPage } from "./pages/auth/Mfa";
+import { AvailabilityPage } from "./pages/center/Availability";
 import { DoctorEditPage } from "./pages/center/DoctorEdit";
 import { DoctorsPage } from "./pages/center/Doctors";
 import { SettingsPage } from "./pages/center/Settings";
@@ -56,6 +57,7 @@ function AppRoutes({ user }: { user: SessionUser }) {
           <Route path="/admin/activity" element={<ActivityPage />} />
         </>
       )}
+      {inCenter && user.role !== "doctor" && <Route path="/availability" element={<AvailabilityPage />} />}
       {canConfigure && (
         <>
           <Route path="/doctors" element={<DoctorsPage />} />

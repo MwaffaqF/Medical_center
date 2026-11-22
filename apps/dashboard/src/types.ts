@@ -98,3 +98,41 @@ export type ActivityItem = {
   userName: string | null;
   userEmail: string | null;
 };
+
+export type AvailabilitySession = {
+  id: string;
+  doctorId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: "open" | "closed";
+  note: string | null;
+  bookedCount: number;
+};
+
+export type AffectedAppointment = {
+  id: string;
+  doctorId: string;
+  startAt: string;
+  endAt: string;
+  status: string;
+  referenceCode: string;
+  patientName: string;
+  patientPhone: string;
+};
+
+type PlannedSession = { doctorId: string; date: string; startTime: string; endTime: string };
+export type CopyWeekResult = {
+  fromWeek: string;
+  toWeek: string;
+  dryRun: boolean;
+  planned: PlannedSession[];
+  skipped: (PlannedSession & { reason: string })[];
+};
+
+export type SlotsResult = {
+  bookingType: BookingType;
+  durationMinutes: number;
+  price: number;
+  days: { date: string; slots: { sessionId: string; date: string; time: string; startAt: number; endAt: number }[] }[];
+};

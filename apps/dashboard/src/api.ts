@@ -1,8 +1,12 @@
 import type {
   CenterAdminUpdateInput,
   CenterCreateInput,
+  AvailabilityCreateInput,
+  AvailabilityUpdateInput,
+  BookingType,
   CenterSettingsInput,
   ChangePasswordInput,
+  CopyWeekInput,
   DoctorInput,
   DoctorServicesInput,
   LoginInput,
@@ -12,13 +16,27 @@ import type {
   UserCreateInput,
   UserUpdateInput,
 } from "@mc/shared";
-import type { ActivityItem, Center, CenterWithCounts, Doctor, MessageTemplate, Specialty, StaffUser } from "./types";
+import type {
+  ActivityItem,
+  AffectedAppointment,
+  AvailabilitySession,
+  Center,
+  CenterWithCounts,
+  CopyWeekResult,
+  Doctor,
+  MessageTemplate,
+  SlotsResult,
+  Specialty,
+  StaffUser,
+} from "./types";
 
 export class ApiRequestError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
     readonly fields: Record<string, string> = {},
+    /** Full error body, for endpoints that return extra details (e.g. affected appointments). */
+    readonly body: unknown = null,
   ) {
     super(code);
   }
@@ -38,7 +56,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiRequestError(0, "network_error");
   }
   const body = (await res.json().catch(() => null)) as ErrorBody;
-  if (!res.ok) throw new ApiRequestError(res.status, body?.error?.code ?? "generic", body?.error?.fields ?? {});
+  if (!res.ok) throw new ApiRequestError(res.status, body?.error?.code ?? "generic", body?.error?.fields ?? {}, body);
   return body as T;
 }
 
@@ -102,5 +120,19 @@ export const api = {
       send<{ doctor: Doctor }>("PUT", `/center/doctors/${id}/services`, input),
     uploadPhoto: (id: string, file: Blob) => upload<{ photoUrl: string }>(`/center/doctors/${id}/photo`, file),
     removePhoto: (id: string) => send<{ ok: true }>("DELETE", `/center/doctors/${id}/photo`),
+
+    availability: (params: { from: string; to: string; doctorId?: string }) => {
+      const q = new URLSearchParams({ from: params.from, to: params.to });
+      if (params.doctorId) q.set("doctorId", params.doctorId);
+      return get<{ sessions: AvailabilitySession[] }>(`/center/availability?${q}`);
+    },
+    createSession: (input: AvailabilityCreateInput) => send<{ session: AvailabilitySession }>("POST", "/center/availability", input),
+    updateSession: (id: string, input: AvailabilityUpdateInput) =>
+      send<{ session: AvailabilitySession; affected: AffectedAppointment[] }>("PATCH", `/center/availability/${id}`, input),
+    deleteSession: (id: string, confirm = false) =>
+      send<{ ok: true; affected: AffectedAppointment[] }>("DELETE", `/center/availability/${id}${confirm ? "?confirm=1" : ""}`),
+    copyWeek: (input: CopyWeekInput) => send<CopyWeekResult>("POST", "/center/availability/copy-week", input),
+    slots: (doctorId: string, bookingType: BookingType, from: string, days = 7) =>
+      get<SlotsResult>(`/center/availability/slots/${doctorId}?bookingType=${bookingType}&from=${from}&days=${days}`),
   },
 };

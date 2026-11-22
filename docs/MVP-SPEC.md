@@ -433,7 +433,9 @@ The Arabic texts are drafts; the center should review them.
 
 ## 16. Delivery plan (estimate)
 
-**Progress:** M0 and M1 are done.
+**Progress:** M0, M1 and M2 are done.
+
+- **M2:** the availability planner (per-doctor week view starting Saturday, add/edit/close/delete sessions, a warning that lists booked patients before a change affects them, copy previous week with a preview), the slot engine shared by the dashboard and the website, a reception slots endpoint, and the single-statement "book only if still free" insert that prevents double booking.
 
 - **M1:** the platform console (centers, center users, support mode with audit flag, activity log, TOTP two-factor for the Super admin), forced password change for temporary passwords, and center configuration: settings, logo, WhatsApp templates, staff accounts, specialties, doctors with photos, and booking types with length and price per doctor. The "platform health" usage panel (§11.13) is deferred: it needs the Cloudflare API and a token, and the Cloudflare dashboard already shows usage.
 - **M0:** The monorepo, Cloudflare configuration, full database schema and first migration, staff sign-in (sessions, rate limiting, CSRF protection, audit log), the bilingual dashboard shell and the website shell are built, with automated tests and CI.

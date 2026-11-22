@@ -16,6 +16,7 @@ function navFor(user: SessionUser): NavItem[] {
   }
   if (inCenter) {
     items.push({ to: "/", label: "nav.home", end: true });
+    if (user.role !== "doctor") items.push({ to: "/availability", label: "nav.availability" });
     if (user.role === "manager" || user.role === "super_admin") {
       items.push(
         { to: "/doctors", label: "nav.doctors" },
