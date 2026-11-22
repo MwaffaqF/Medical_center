@@ -8,6 +8,8 @@ export type Bindings = {
   ENVIRONMENT: "development" | "staging" | "production";
   /** Base64 32-byte key for encrypting TOTP secrets (Worker secret; .dev.vars locally). */
   SECRETS_KEY?: string;
+  /** Cloudflare Turnstile secret for public forms (Worker secret). Optional outside production. */
+  TURNSTILE_SECRET?: string;
   /** Comma-separated extra origins allowed to send state-changing requests (e.g. the public website). */
   ALLOWED_ORIGINS?: string;
 };

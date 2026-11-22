@@ -11,6 +11,8 @@ export function call(path: string, init: RequestInit & { cookie?: string } = {})
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("content-type")) headers.set("content-type", "application/json");
   if (init.cookie) headers.set("cookie", init.cookie);
+  // Each request gets its own client address unless a test sets one, so per-network limits don't leak between tests.
+  if (!headers.has("cf-connecting-ip")) headers.set("cf-connecting-ip", `10.0.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`);
   const worker = (exports as unknown as { default: Fetcher }).default;
   return worker.fetch(new Request(BASE + path, { ...init, headers }));
 }

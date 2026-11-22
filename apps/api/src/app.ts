@@ -14,6 +14,7 @@ import { settingsRoutes } from "./routes/center/settings";
 import { specialtyRoutes } from "./routes/center/specialties";
 import { centerUserRoutes } from "./routes/center/users";
 import { mediaRoutes } from "./routes/media";
+import { publicRoutes } from "./routes/public";
 
 export const app = new Hono<AppEnv>().basePath("/api");
 
@@ -21,11 +22,12 @@ app.use("*", secureHeaders({ crossOriginResourcePolicy: "same-site" }));
 app.use("*", async (c, next) => {
   c.set("db", createDb(c.env.DB));
   await next();
-  if (!c.req.path.startsWith("/api/media/")) c.header("Cache-Control", "no-store");
+  if (!c.res.headers.has("Cache-Control")) c.header("Cache-Control", "no-store");
 });
 
-// Public images: no session lookup needed.
+// Public images and the public website API: no cookies, no session lookup.
 app.route("/media", mediaRoutes);
+app.route("/public", publicRoutes);
 
 app.use("*", originGuard);
 app.use("*", loadSession);

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BOOKING_TYPES, CENTER_STATUSES, LOCALES, MESSAGE_TEMPLATE_KEYS, ROLES } from "./enums";
+import { BOOKING_TYPES, CENTER_STATUSES, LOCALES, MESSAGE_TEMPLATE_KEYS, PREFERRED_PERIODS, ROLES } from "./enums";
 import { normalizePhone } from "./phone";
 import { daysBetween, isValidDate, isValidTime, timeToMinutes } from "./time";
 
@@ -279,3 +279,47 @@ export const slotsQuerySchema = z.object({
   from: dateSchema,
   days: z.coerce.number().int().min(1).max(31).default(7),
 });
+
+// ---------------------------------------------------------------- public website (spec §9, §10)
+
+const requiredPhone = z
+  .string()
+  .trim()
+  .min(1, "required")
+  .max(30)
+  .transform((v, ctx) => {
+    const p = normalizePhone(v);
+    if (!p) {
+      ctx.addIssue({ code: "custom", message: "invalid_phone" });
+      return z.NEVER;
+    }
+    return p;
+  });
+
+const patientFields = {
+  fullName: z.string().trim().min(2, "required").max(120),
+  phone: requiredPhone,
+  preferredLocale: z.enum(LOCALES).default("ar"),
+  note: optionalText(500),
+  /** Patient agreed to the privacy notice (spec §15). */
+  consent: z.literal(true, { message: "consent_required" }),
+  /** Cloudflare Turnstile token from the bot check. */
+  turnstileToken: z.string().max(4096).optional(),
+};
+
+export const publicBookingSchema = z.object({
+  doctorId: z.string().min(1),
+  bookingType: z.enum(BOOKING_TYPES),
+  startAt: z.number().int().positive(),
+  ...patientFields,
+});
+export type PublicBookingInput = z.input<typeof publicBookingSchema>;
+
+export const publicRequestSchema = z.object({
+  doctorId: z.string().min(1),
+  bookingType: z.enum(BOOKING_TYPES),
+  preferredDate: dateSchema.nullish().transform((v) => v ?? null),
+  preferredPeriod: z.enum(PREFERRED_PERIODS).default("any"),
+  ...patientFields,
+});
+export type PublicRequestInput = z.input<typeof publicRequestSchema>;
