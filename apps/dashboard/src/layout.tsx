@@ -15,8 +15,14 @@ function navFor(user: SessionUser): NavItem[] {
     items.push({ to: "/admin", label: "nav.centers", end: true }, { to: "/admin/activity", label: "nav.activity" });
   }
   if (inCenter) {
-    items.push({ to: "/", label: "nav.home", end: true });
-    if (user.role !== "doctor") items.push({ to: "/availability", label: "nav.availability" });
+    items.push({ to: "/", label: "nav.home", end: true }, { to: "/calendar", label: "nav.calendar" });
+    if (user.role !== "doctor") {
+      items.push(
+        { to: "/requests", label: "nav.requests" },
+        { to: "/patients", label: "nav.patients" },
+        { to: "/availability", label: "nav.availability" },
+      );
+    }
     if (user.role === "manager" || user.role === "super_admin") {
       items.push(
         { to: "/doctors", label: "nav.doctors" },

@@ -11,6 +11,12 @@ import type {
   DoctorServicesInput,
   LoginInput,
   MeResponse,
+  MessageTemplateKey,
+  NewPatientInput,
+  RequestStatus,
+  RescheduleInput,
+  StaffAppointmentInput,
+  StatusActionInput,
   SpecialtyInput,
   TemplatesUpdateInput,
   UserCreateInput,
@@ -18,6 +24,13 @@ import type {
 } from "@mc/shared";
 import type {
   ActivityItem,
+  Appointment,
+  AppointmentDetail,
+  BookingRequest,
+  Patient,
+  PatientDetail,
+  TodayResponse,
+  WhatsAppMessage,
   AffectedAppointment,
   AvailabilitySession,
   Center,
@@ -134,5 +147,34 @@ export const api = {
     copyWeek: (input: CopyWeekInput) => send<CopyWeekResult>("POST", "/center/availability/copy-week", input),
     slots: (doctorId: string, bookingType: BookingType, from: string, days = 7) =>
       get<SlotsResult>(`/center/availability/slots/${doctorId}?bookingType=${bookingType}&from=${from}&days=${days}`),
+  },
+
+  // reception (M4)
+  reception: {
+    today: () => get<TodayResponse>("/center/appointments/today"),
+    appointments: (params: { from: string; to: string; doctorId?: string }) => {
+      const q = new URLSearchParams({ from: params.from, to: params.to });
+      if (params.doctorId) q.set("doctorId", params.doctorId);
+      return get<{ appointments: Appointment[] }>(`/center/appointments?${q}`);
+    },
+    appointment: (id: string) => get<AppointmentDetail>(`/center/appointments/${id}`),
+    createAppointment: (input: StaffAppointmentInput) => send<{ appointment: Appointment }>("POST", "/center/appointments", input),
+    setStatus: (id: string, input: StatusActionInput) => send<{ appointment: Appointment }>("POST", `/center/appointments/${id}/status`, input),
+    reschedule: (id: string, input: RescheduleInput) => send<{ appointment: Appointment }>("POST", `/center/appointments/${id}/reschedule`, input),
+    updateAppointment: (id: string, input: { internalNote: string | null }) =>
+      send<{ appointment: Appointment }>("PATCH", `/center/appointments/${id}`, input),
+    appointmentMessage: (id: string, templateKey: MessageTemplateKey) =>
+      send<WhatsAppMessage>("POST", `/center/appointments/${id}/messages`, { templateKey }),
+
+    requests: (status?: RequestStatus) => get<{ requests: BookingRequest[] }>(`/center/requests${status ? `?status=${status}` : ""}`),
+    updateRequest: (id: string, status: "new" | "contacted" | "declined") =>
+      send<{ request: BookingRequest }>("PATCH", `/center/requests/${id}`, { status }),
+    requestMessage: (id: string) => send<WhatsAppMessage>("POST", `/center/requests/${id}/messages`),
+
+    patients: (q: string) => get<{ patients: Patient[] }>(`/center/patients?q=${encodeURIComponent(q)}`),
+    patient: (id: string) => get<PatientDetail>(`/center/patients/${id}`),
+    createPatient: (input: NewPatientInput) => send<{ patient: Patient }>("POST", "/center/patients", input),
+    updatePatient: (id: string, input: Partial<NewPatientInput>) => send<{ patient: Patient }>("PATCH", `/center/patients/${id}`, input),
+    mergePatient: (id: string, intoId: string) => send<{ ok: true; patientId: string }>("POST", `/center/patients/${id}/merge`, { intoId }),
   },
 };

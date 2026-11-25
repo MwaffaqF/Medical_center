@@ -3,26 +3,16 @@ import { Link } from "react-router";
 import type { MessageKey, SessionUser } from "@mc/shared";
 import { api } from "../api";
 import { useI18n } from "../i18n";
-import { Card, PageHeader } from "../ui";
+import { Card } from "../ui";
+import { TodayPage } from "./center/Today";
 
-/** Center home. The Today screen (spec §11.1) replaces most of this in milestone M4. */
+/** Center home: the Today screen (spec §11.1), with the setup checklist for managers until it is complete. */
 export function HomePage({ user }: { user: SessionUser }) {
-  const { t } = useI18n();
   const canConfigure = user.role === "manager" || user.role === "super_admin";
-  return (
-    <>
-      <PageHeader title={t("dashboard.welcome", { name: user.name })} />
-      <div className="space-y-6">
-        {canConfigure && <SetupChecklist />}
-        <Card>
-          <p className="text-slate-600">{t("home.receptionSoon")}</p>
-        </Card>
-      </div>
-    </>
-  );
+  return <TodayPage readOnly={user.role === "doctor"} top={canConfigure ? <SetupChecklist /> : null} />;
 }
 
-function SetupChecklist() {
+export function SetupChecklist() {
   const { t } = useI18n();
   const settings = useQuery({ queryKey: ["center", "settings"], queryFn: api.center.settings });
   const specialties = useQuery({ queryKey: ["center", "specialties"], queryFn: api.center.specialties });
@@ -40,7 +30,7 @@ function SetupChecklist() {
   ];
   const doneCount = steps.filter((s) => s.done).length;
   const loaded = [settings, specialties, doctors, staff].every((q) => q.isSuccess);
-  if (!loaded) return null;
+  if (!loaded || doneCount === steps.length) return null;
 
   return (
     <Card title={`${t("home.setupChecklist")} · ${doneCount}/${steps.length}`}>
