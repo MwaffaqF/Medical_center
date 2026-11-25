@@ -3,8 +3,8 @@ import type { Database } from "./db/client";
 
 export type Bindings = {
   DB: D1Database;
-  /** R2 bucket for doctor photos and center logos. */
-  MEDIA: R2Bucket;
+  /** Workers KV namespace for doctor photos and center logos (free plan, no payment card needed). */
+  MEDIA: KVNamespace;
   ENVIRONMENT: "development" | "staging" | "production";
   /** Base64 32-byte key for encrypting TOTP secrets (Worker secret; .dev.vars locally). */
   SECRETS_KEY?: string;

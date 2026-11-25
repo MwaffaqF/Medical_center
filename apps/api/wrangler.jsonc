@@ -12,8 +12,8 @@
   },
   "vars": { "ENVIRONMENT": "development" },
   // Secrets (not in this file): SECRETS_KEY — see .dev.vars.example and README.
-  // Doctor photos and logos. R2 may ask for a payment card on the account even within the free allowance.
-  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "medical-center-media-dev" }],
+  // Doctor photos and logos in Workers KV (free plan, no payment card). Local dev ignores the id.
+  "kv_namespaces": [{ "binding": "MEDIA", "id": "00000000000000000000000000000000" }],
   "d1_databases": [
     {
       "binding": "DB",
@@ -38,7 +38,8 @@
           "migrations_dir": "migrations"
         }
       ],
-      "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "medical-center-media-staging" }],
+      // Replace id with the id from: wrangler kv namespace create medical-center-media-staging
+      "kv_namespaces": [{ "binding": "MEDIA", "id": "REPLACE_WITH_STAGING_KV_ID" }],
       "triggers": { "crons": ["15 23 * * *"] }
     },
     "production": {
@@ -53,7 +54,8 @@
           "migrations_dir": "migrations"
         }
       ],
-      "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "medical-center-media-production" }],
+      // Replace id with the id from: wrangler kv namespace create medical-center-media-production
+      "kv_namespaces": [{ "binding": "MEDIA", "id": "REPLACE_WITH_PRODUCTION_KV_ID" }],
       "triggers": { "crons": ["15 23 * * *"] }
     }
   }
