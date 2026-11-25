@@ -7,6 +7,10 @@
  *   SEED_SUPERADMIN_EMAIL=... SEED_SUPERADMIN_PASSWORD=... node scripts/seed.ts --env production
  *       Remote: creates only the super admin account.
  *
+ *   SEED_SUPERADMIN_EMAIL=... SEED_SUPERADMIN_PASSWORD=... node scripts/seed.ts --env staging --pilot-center
+ *       Remote test site: also the pilot center with a manager and a receptionist
+ *       (SEED_MANAGER_EMAIL / SEED_RECEPTION_EMAIL), who get one-time passwords to change at first sign-in.
+ *
  * Passwords are hashed here; only hashes reach the database.
  */
 import { execFileSync } from "node:child_process";
@@ -20,6 +24,7 @@ import { randomToken } from "../src/lib/tokens.ts";
 const args = process.argv.slice(2);
 const local = args.includes("--local");
 const devData = args.includes("--dev-data");
+const pilotCenter = devData || args.includes("--pilot-center");
 const envIdx = args.indexOf("--env");
 const env = envIdx >= 0 ? args[envIdx + 1] : undefined;
 if (!local && !env) {
@@ -39,9 +44,11 @@ const printed: string[] = [];
 async function addUser(u: { email: string; name: string; role: string; centerId: string | null; password?: string }) {
   const password = u.password ?? randomToken(12);
   const hash = await hashPassword(password);
+  // Online, generated passwords are one-time: the person chooses their own at first sign-in.
+  const mustChange = !local && !u.password ? 1 : 0;
   lines.push(
-    `INSERT INTO users (id, center_id, name, email, password_hash, role, preferred_locale, is_active, created_at, updated_at)
-     VALUES (${q(crypto.randomUUID())}, ${q(u.centerId)}, ${q(u.name)}, ${q(u.email.toLowerCase())}, ${q(hash)}, ${q(u.role)}, 'ar', 1, ${now}, ${now})
+    `INSERT INTO users (id, center_id, name, email, password_hash, role, preferred_locale, is_active, must_change_password, created_at, updated_at)
+     VALUES (${q(crypto.randomUUID())}, ${q(u.centerId)}, ${q(u.name)}, ${q(u.email.toLowerCase())}, ${q(hash)}, ${q(u.role)}, 'ar', 1, ${mustChange}, ${now}, ${now})
      ON CONFLICT(email) DO NOTHING;`,
   );
   if (!u.password) printed.push(`${u.role.padEnd(13)} ${u.email}  password: ${password}`);
@@ -59,7 +66,7 @@ if (!local && (!superPassword || superPassword.length < 12)) {
 }
 await addUser({ email: superEmail, name: "Platform Admin", role: "super_admin", centerId: null, password: superPassword });
 
-if (devData) {
+if (pilotCenter) {
   const centerId = "00000000-0000-4000-8000-000000000001";
   lines.push(
     `INSERT INTO centers (id, slug, status, name_ar, name_en, phone, whatsapp_phone, timezone, default_country_code, currency, default_locale, slot_step_minutes, min_lead_minutes, max_advance_days, created_at, updated_at)
@@ -73,8 +80,10 @@ if (devData) {
        ON CONFLICT(center_id, key) DO NOTHING;`,
     );
   }
-  await addUser({ email: "manager@local.test", name: "Center Manager", role: "manager", centerId });
-  await addUser({ email: "reception@local.test", name: "Reception", role: "receptionist", centerId });
+  const managerEmail = process.env.SEED_MANAGER_EMAIL ?? "manager@local.test";
+  const receptionEmail = process.env.SEED_RECEPTION_EMAIL ?? "reception@local.test";
+  await addUser({ email: managerEmail, name: "Center Manager", role: "manager", centerId });
+  await addUser({ email: receptionEmail, name: "Reception", role: "receptionist", centerId });
 }
 
 const dir = mkdtempSync(join(tmpdir(), "mc-seed-"));

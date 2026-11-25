@@ -21,8 +21,9 @@
       "services": [{ "binding": "API", "service": "medical-center-app-staging" }],
       "vars": {
         "CENTER_SLUG": "pilot",
-        "TURNSTILE_SITE_KEY": "REPLACE_WITH_TURNSTILE_SITE_KEY",
-        "DASHBOARD_URL": "https://app-staging.example.com"
+        // Test site: no bot check yet (the API only requires Turnstile in production).
+        "TURNSTILE_SITE_KEY": "",
+        "DASHBOARD_URL": "https://medical-center-app-staging.mwaffaqfanari.workers.dev"
       }
     },
     "production": {
