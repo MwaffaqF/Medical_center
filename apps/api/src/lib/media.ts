@@ -9,12 +9,15 @@ const EXT: Record<(typeof IMAGE_TYPES)[number], string> = {
   "image/webp": "webp",
 };
 
+/** Stored next to each image in KV. */
+export type MediaMetadata = { contentType: string };
+
 /** Public URL path for a stored object (served by GET /api/media/*). */
 export const mediaUrl = (key: string) => `/api/media/${key}`;
 export const keyFromUrl = (url: string | null) => (url?.startsWith("/api/media/") ? url.slice("/api/media/".length) : null);
 
 /**
- * Stores the request body (a raw image, already resized by the dashboard) in R2.
+ * Stores the request body (a raw image, already resized by the dashboard) in Workers KV.
  * Checks type, size and the file's magic bytes. Returns the public URL.
  */
 export async function storeImage(c: Context<AppEnv>, prefix: string): Promise<string> {
@@ -28,7 +31,7 @@ export async function storeImage(c: Context<AppEnv>, prefix: string): Promise<st
   if (!matchesMagic(type, body)) throw new ApiError(415, "unsupported_image_type");
 
   const key = `${prefix}/${crypto.randomUUID()}.${EXT[type]}`;
-  await c.env.MEDIA.put(key, body, { httpMetadata: { contentType: type, cacheControl: "public, max-age=31536000, immutable" } });
+  await c.env.MEDIA.put(key, body, { metadata: { contentType: type } satisfies MediaMetadata });
   return mediaUrl(key);
 }
 

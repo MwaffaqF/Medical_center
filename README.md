@@ -69,12 +69,14 @@ npx wrangler d1 execute DB --remote --env production \
 cd apps/api
 npx wrangler login
 npx wrangler d1 create medical-center-staging            # put the id into wrangler.jsonc (env.staging)
-npx wrangler r2 bucket create medical-center-media-staging
+npx wrangler kv namespace create medical-center-media-staging  # put the id into wrangler.jsonc (env.staging)
 npx wrangler secret put SECRETS_KEY --env staging        # paste a new key (see .dev.vars.example)
 npx wrangler d1 migrations apply DB --remote --env staging
 SEED_SUPERADMIN_EMAIL=you@example.com SEED_SUPERADMIN_PASSWORD='a-long-password' node scripts/seed.ts --env staging
 pnpm --filter @mc/dashboard build && pnpm deploy:staging
 ```
+
+Everything above works on Cloudflare's **Free plan with no payment card**: Workers, D1, KV (photos and logos) and Turnstile.
 
 Keep `SECRETS_KEY` safe: it encrypts the two-factor secrets. If it is lost, reset two-factor as described above.
 

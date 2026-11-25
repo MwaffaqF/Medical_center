@@ -49,7 +49,7 @@ This causes double bookings, lost requests in chat history, repeated questions f
 | D8 | Availability uses **per-date availability sessions**, not a weekly template | Fits on-call doctors. A "copy previous week" shortcut is provided. |
 | D9 | **Every doctor** can be booked online | If a doctor has no published session, the patient sends a *booking request* instead. |
 | D10 | WhatsApp = **click-to-chat links** (`wa.me`), sent by reception | The WhatsApp Business API is **not available for Syria** (§13), so click-to-chat stays the WhatsApp channel. Automation in Phase 2 uses other channels. |
-| D11 | Hosting on the **Cloudflare Free plan** for the MVP and pilot | Workers, D1, R2 and Turnstile. Upgrade to Workers Paid (USD 5/month) before or soon after go-live. See §12.4. |
+| D11 | Hosting on the **Cloudflare Free plan** for the MVP and pilot | Workers, D1, KV and Turnstile, all usable without a payment card. Workers Paid (USD 5/month) only if needed later. See §12.4. |
 | D12 | The system is run by **receptionists** | The center manager configures it; doctors get read-only access (optional). |
 | D13 | A **Super admin** (platform owner) level exists from the MVP | Manages centers, center users and support access. See §11.13. |
 | D15 | Country: **Syria** | Defaults and constraints in §19. |
@@ -266,7 +266,7 @@ Login with email and password. The dashboard is fully bilingual, and each staff 
 - Warning when an edit affects existing appointments.
 
 ### 11.8 Doctors (manager)
-- Create and edit the profile (bilingual fields, photo upload to R2), specialties, active and display order.
+- Create and edit the profile (bilingual fields, photo upload to KV storage), specialties, active and display order.
 - Booking types per doctor: enable or disable Visit, Re-visit and Session, and set length and price.
 - Optional: link a doctor user account.
 
@@ -326,7 +326,7 @@ The system has a clear **frontend / backend split**, in one repository:
               │  rules, notifications    │
               └─────┬──────────┬─────────┘
                     ▼          ▼
-               D1 (database)  R2 (images)
+               D1 (database)  KV (images)
 ```
 
 ### 12.2 Components
@@ -340,12 +340,12 @@ The system has a clear **frontend / backend split**, in one repository:
 | UI | Tailwind CSS with RTL support (logical properties) and an accessible component library | |
 | Internationalisation | Arabic and English message files in `packages/shared`; `dir="rtl"` for Arabic; locale-aware dates, times and currency | |
 | Database | **Cloudflare D1** (SQLite) through **Drizzle ORM** and migrations | Drizzle keeps a later move to PostgreSQL (through Hyperdrive) possible. |
-| File storage | **Cloudflare R2**: doctor photos, logos, images (resized before upload) | |
+| File storage | **Cloudflare Workers KV**: doctor photos and logos (resized to small WebP files in the browser before upload), served with long-lived caching | KV needs no payment card, unlike R2. The Free plan allows 1 GB, 100,000 reads and 1,000 writes per day — far more than a center's photos need. |
 | Bot protection | **Cloudflare Turnstile** on the public booking and request forms | Free. |
 | Staff authentication | Email and password, hashed with PBKDF2 (native Web Crypto, so it stays within the CPU limit). Secure, HTTP-only session cookies. TOTP two-factor for the Super admin, with the secret encrypted (AES-GCM) by a Worker secret. Temporary passwords must be changed at first sign-in. | |
-| Scheduled jobs | Cron Triggers: daily database export to R2, highlighting stale pending items | |
-| Backups | D1 Time Travel (7 days on Free, 30 on Paid) plus a daily export to R2 | |
-| Environments | `staging` and `production` (separate D1 and R2 resources) | |
+| Scheduled jobs | Cron Triggers: daily housekeeping (expired sessions); stale pending items are highlighted on screen | |
+| Backups | D1 Time Travel: restore to any minute of the last 7 days on Free (30 on Paid) | A daily off-site export can be added later if a storage option without a card is chosen. |
+| Environments | `staging` and `production` (separate D1 databases and KV namespaces) | |
 | CI/CD | GitHub Actions: lint, type-check, tests, deploy with Wrangler | |
 
 **Why not Next.js:** Next.js is a full-stack framework (frontend and backend in one). On the Cloudflare Free plan, its bundle can exceed the 3 MB Worker size limit, and server rendering can exceed the 10 ms CPU limit. The split above stays well inside both limits and keeps the API independent for the mobile app.
@@ -378,12 +378,13 @@ Limits that matter for this project (check Cloudflare's current pricing pages be
 | 3 MB Worker size (compressed) | Fine for Hono and Astro; this is the main reason not to use Next.js. |
 | 50 database queries per request | Endpoints are designed to stay well below this. |
 | D1 daily read and write quotas | Well above one center's needs. **When a daily quota is used up, the database stops answering until the reset (midnight UTC).** |
-| D1 Time Travel: 7 days | Combined with the daily export to R2. |
+| D1 Time Travel: 7 days | The backup for the pilot: the database can be restored to any minute in the last 7 days. |
 | No uptime guarantee (SLA) | Acceptable for a pilot. |
+| KV: 1,000 writes and 100,000 reads per day, 1 GB | Writes happen only when a photo or logo is uploaded; images are cached for a year in browsers and at the edge, so reads stay low. |
 
-R2 may require a payment card on the account even while usage stays within the free allowance.
+The project uses no service that requires a payment card. (R2, Cloudflare's file storage, may ask for one even within its free allowance, which is why photos are kept in KV.)
 
-**Recommendation:** develop and run the pilot on the Free plan. Move to **Workers Paid (USD 5 per month)** when real patients depend on it, mainly so that a usage spike can never make bookings fail. The code needs no changes for the upgrade.
+**Decision:** develop and run the MVP and pilot on the Free plan. Move to **Workers Paid (USD 5 per month)** later only if needed, for example if usage approaches the daily limits, so that a spike can never make bookings fail. The code needs no changes for the upgrade.
 
 ## 13. WhatsApp (MVP: click-to-chat)
 
@@ -500,7 +501,7 @@ The Arabic texts are drafts; the center should review them.
 ### 19.2 Sanctions and service availability
 US comprehensive sanctions on Syria were lifted in 2025, and the State Sponsor of Terrorism designation was rescinded in August 2026. Some export-control and targeted restrictions remain. In practice:
 - **Cloudflare, GitHub and similar US services**: sign-up should now be possible, but check each provider's current terms when opening accounts. Accounts are opened honestly, with no tools to hide the location.
-- **Payment cards**: Syrian bank cards are often not accepted by international services. This matters if R2 asks for a card and when upgrading to Workers Paid (USD 5/month). Decide early whose card is used.
+- **Payment cards**: Syrian bank cards are often not accepted by international services. The MVP avoids any service that needs a card (photos are stored in KV, not R2). A card matters only for a later upgrade to Workers Paid (USD 5/month) or for buying a domain name.
 - **WhatsApp Business API**: not available (§13). The WhatsApp app and click-to-chat links work.
 
 ### 19.3 Unreliable internet and power
