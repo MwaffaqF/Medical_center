@@ -1,0 +1,45 @@
+---
+import Base from "../../layouts/Base.astro";
+import { pick, t } from "../../i18n";
+import { getSite } from "../../lib/api";
+import { localeParam } from "../../lib/page";
+
+const locale = localeParam(Astro.params.locale);
+if (!locale) return Astro.rewrite("/404");
+const site = await getSite();
+const name = pick(locale, site.center.nameAr, site.center.nameEn);
+
+// Draft text (spec §15). The final wording must be reviewed with the center and a Syrian lawyer.
+const sections =
+  locale === "ar"
+    ? [
+        ["ما الذي نجمعه", "عند الحجز نجمع اسم المريض ورقم الجوال ونوع الموعد والطبيب والوقت، وأي ملاحظة تكتبها. لا نجمع معلومات طبية عبر الموقع."],
+        ["لماذا نجمعه", "لحجز موعدك وتأكيده والتواصل معك بخصوصه عبر واتساب أو الهاتف، ولإدارة مواعيد المركز."],
+        ["من يطّلع عليه", `موظفو ${name} المخوّلون فقط، ومزوّد المنصة التقنية عند الحاجة للدعم الفني، مع تسجيل كل وصول.`],
+        ["أين تُحفظ", "تُحفظ البيانات لدى مزوّد خدمات سحابية (Cloudflare) بشكل آمن ومشفّر أثناء النقل."],
+        ["حقوقك", "يمكنك طلب الاطلاع على بياناتك أو تصحيحها أو حذفها بالتواصل مع المركز."],
+      ]
+    : [
+        ["What we collect", "When you book we collect the patient's name, mobile number, the appointment type, doctor and time, and any note you write. We do not collect medical information through the website."],
+        ["Why", "To book and confirm your appointment, contact you about it by WhatsApp or phone, and run the center's schedule."],
+        ["Who can see it", `Only authorised staff of ${name}, and the platform provider when technical support is needed, with every access logged.`],
+        ["Where it is stored", "With a cloud provider (Cloudflare), securely and encrypted in transit."],
+        ["Your rights", "You can ask to see, correct or delete your information by contacting the center."],
+      ];
+---
+
+<Base locale={locale} site={site} title={t(locale, "privacy.title")}>
+  <article class="mx-auto max-w-3xl px-4 py-12">
+    <h1 class="mb-8 text-3xl font-bold">{t(locale, "privacy.title")}</h1>
+    <div class="space-y-6">
+      {
+        sections.map(([h, p]) => (
+          <section>
+            <h2 class="mb-1 text-lg font-semibold">{h}</h2>
+            <p class="leading-relaxed text-slate-700">{p}</p>
+          </section>
+        ))
+      }
+    </div>
+  </article>
+</Base>

@@ -1,0 +1,30 @@
+---
+import SectionHeading from "../../../components/SectionHeading.astro";
+import SpecialtyCard from "../../../components/SpecialtyCard.astro";
+import Base from "../../../layouts/Base.astro";
+import { t } from "../../../i18n";
+import { getSite } from "../../../lib/api";
+import { localeParam } from "../../../lib/page";
+
+const locale = localeParam(Astro.params.locale);
+if (!locale) return Astro.rewrite("/404");
+const site = await getSite();
+Astro.response.headers.set("Cache-Control", "public, max-age=60");
+---
+
+<Base locale={locale} site={site} title={t(locale, "specialties.title")} description={t(locale, "specialties.subtitle")}>
+  <div class="mx-auto max-w-6xl px-4 py-12">
+    <SectionHeading title={t(locale, "specialties.title")} subtitle={t(locale, "specialties.subtitle")} />
+    {
+      site.specialties.length ? (
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {site.specialties.map((s) => (
+            <SpecialtyCard locale={locale} specialty={s} />
+          ))}
+        </div>
+      ) : (
+        <p class="text-slate-500">{t(locale, "specialties.empty")}</p>
+      )
+    }
+  </div>
+</Base>

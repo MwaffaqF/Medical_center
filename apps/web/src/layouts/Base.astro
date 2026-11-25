@@ -1,0 +1,229 @@
+---
+import { localeDir, waNumber, type Locale } from "@mc/shared";
+import Icon from "../components/Icon.astro";
+import { t, pick } from "../i18n";
+import { webEnv, type Site } from "../lib/api";
+import "../styles.css";
+
+interface Props {
+  locale: Locale;
+  site: Site;
+  title?: string;
+  description?: string;
+  /** Hide the floating WhatsApp button (e.g. on the booking page, to keep the form clear). */
+  hideFloatingWhatsapp?: boolean;
+}
+const { locale, site, title, description, hideFloatingWhatsapp } = Astro.props;
+const { center } = site;
+const centerName = pick(locale, center.nameAr, center.nameEn);
+const other: Locale = locale === "ar" ? "en" : "ar";
+const otherPath = Astro.url.pathname.replace(/^\/(ar|en)(?=\/|$)/, `/${other}`) + Astro.url.search;
+const pageTitle = title ? `${title} | ${centerName}` : centerName;
+const metaDescription = description ?? t(locale, "hero.subtitle");
+const whatsapp = center.whatsappPhone ? `https://wa.me/${waNumber(center.whatsappPhone)}` : null;
+const base = `/${locale}`;
+const path = Astro.url.pathname;
+const nav = [
+  { href: `${base}/`, label: t(locale, "nav.home"), active: path === `${base}/` || path === base },
+  { href: `${base}/specialties`, label: t(locale, "nav.specialties"), active: path.startsWith(`${base}/specialties`) },
+  { href: `${base}/doctors`, label: t(locale, "nav.doctors"), active: path.startsWith(`${base}/doctors`) },
+  { href: `${base}/#patients`, label: t(locale, "nav.patients"), active: false },
+  { href: `${base}/#about`, label: t(locale, "nav.about"), active: false },
+  { href: `${base}/#contact`, label: t(locale, "nav.contact"), active: false },
+];
+const year = new Date().getFullYear();
+const site_url = Astro.site ?? Astro.url;
+---
+
+<!doctype html>
+<html lang={locale} dir={localeDir(locale)}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0f766e" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={metaDescription} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={metaDescription} />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content={locale === "ar" ? "ar_SY" : "en_GB"} />
+    <link rel="icon" href={center.logoUrl ?? "/icon.svg"} />
+    <link rel="canonical" href={new URL(Astro.url.pathname, site_url)} />
+    <link rel="alternate" hreflang={locale} href={new URL(Astro.url.pathname, site_url)} />
+    <link rel="alternate" hreflang={other} href={new URL(otherPath, site_url)} />
+    <link rel="alternate" hreflang="x-default" href={new URL(`/ar${Astro.url.pathname.slice(3)}`, site_url)} />
+    <slot name="head" />
+  </head>
+  <body class="flex min-h-dvh flex-col bg-white font-sans text-slate-900 antialiased">
+    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:start-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:shadow">
+      {t(locale, "nav.skip")}
+    </a>
+
+    <header class="sticky top-0 z-30 border-b border-slate-100 bg-white/95 backdrop-blur">
+      <div class="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+        <a href={`${base}/`} class="flex min-w-0 items-center gap-2 font-bold">
+          <img src={center.logoUrl ?? "/icon.svg"} alt="" class="size-9 shrink-0 rounded-lg object-contain" width="36" height="36" />
+          <span class="truncate">{centerName}</span>
+        </a>
+
+        <nav aria-label={t(locale, "nav.menu")} class="hidden lg:block">
+          <ul class="flex items-center gap-1">
+            {
+              nav.map((item) => (
+                <li>
+                  <a
+                    href={item.href}
+                    aria-current={item.active ? "page" : undefined}
+                    class:list={[
+                      "rounded-lg px-3 py-2 text-sm font-medium hover:bg-brand-50 hover:text-brand-800",
+                      item.active ? "text-brand-700" : "text-slate-700",
+                    ]}
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
+
+        <div class="flex shrink-0 items-center gap-1">
+          <a href={otherPath} hreflang={other} lang={other} class="rounded-lg px-2.5 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50">
+            {t(locale, "nav.switch")}
+          </a>
+          {
+            center.status === "active" && (
+              <a href={`${base}/book`} class="hidden rounded-xl bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800 sm:inline-flex">
+                {t(locale, "nav.book")}
+              </a>
+            )
+          }
+          <!-- Mobile menu: works without JavaScript. -->
+          <details class="group relative lg:hidden">
+            <summary class="flex size-10 cursor-pointer list-none items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100 [&::-webkit-details-marker]:hidden">
+              <span class="sr-only">{t(locale, "nav.menu")}</span>
+              <Icon name="menu" class="size-6 group-open:hidden" />
+              <Icon name="close" class="hidden size-6 group-open:block" />
+            </summary>
+            <div class="fixed inset-x-0 top-[61px] border-b border-slate-200 bg-white px-4 pb-4 shadow-lg">
+              <ul class="divide-y divide-slate-100">
+                {
+                  nav.map((item) => (
+                    <li>
+                      <a href={item.href} class:list={["block py-3 text-base font-medium", item.active ? "text-brand-700" : "text-slate-800"]}>
+                        {item.label}
+                      </a>
+                    </li>
+                  ))
+                }
+              </ul>
+              {
+                center.status === "active" && (
+                  <a href={`${base}/book`} class="mt-3 flex justify-center rounded-xl bg-brand-700 px-4 py-3 font-semibold text-white">
+                    {t(locale, "nav.book")}
+                  </a>
+                )
+              }
+            </div>
+          </details>
+        </div>
+      </div>
+    </header>
+
+    {
+      center.status !== "active" && (
+        <div class="bg-amber-100 text-amber-950">
+          <div class="mx-auto max-w-6xl px-4 py-3 text-sm">
+            <strong>{t(locale, "suspended.title")}.</strong> {t(locale, "suspended.text")}
+            {center.phone && (
+              <a href={`tel:${center.phone}`} dir="ltr" class="ms-1 font-semibold underline">
+                {center.phone}
+              </a>
+            )}
+          </div>
+        </div>
+      )
+    }
+
+    <main id="main" class="flex-1">
+      <slot />
+    </main>
+
+    <footer class="mt-16 bg-slate-900 text-slate-300">
+      <div class="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="lg:col-span-2">
+          <p class="flex items-center gap-2 text-lg font-bold text-white">
+            <img src={center.logoUrl ?? "/icon.svg"} alt="" class="size-8 rounded-md object-contain" width="32" height="32" />
+            {centerName}
+          </p>
+          <p class="mt-3 max-w-md text-sm leading-relaxed">
+            {pick(locale, center.aboutAr, center.aboutEn).split("\n")[0] || t(locale, "hero.subtitle")}
+          </p>
+        </div>
+        <div>
+          <p class="mb-3 font-semibold text-white">{t(locale, "footer.links")}</p>
+          <ul class="space-y-2 text-sm">
+            {
+              nav.slice(1).map((item) => (
+                <li>
+                  <a href={item.href} class="hover:text-white">
+                    {item.label}
+                  </a>
+                </li>
+              ))
+            }
+            <li><a href={`${base}/privacy`} class="hover:text-white">{t(locale, "footer.privacy")}</a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="mb-3 font-semibold text-white">{t(locale, "footer.contact")}</p>
+          <ul class="space-y-2 text-sm">
+            {
+              center.phone && (
+                <li class="flex items-center gap-2">
+                  <Icon name="phone" class="size-4 shrink-0" />
+                  <a href={`tel:${center.phone}`} dir="ltr" class="hover:text-white">{center.phone}</a>
+                </li>
+              )
+            }
+            {
+              whatsapp && (
+                <li class="flex items-center gap-2">
+                  <Icon name="whatsapp" class="size-4 shrink-0" />
+                  <a href={whatsapp} dir="ltr" class="hover:text-white" rel="noopener">{center.whatsappPhone}</a>
+                </li>
+              )
+            }
+            {
+              pick(locale, center.addressAr, center.addressEn) && (
+                <li class="flex items-start gap-2">
+                  <Icon name="pin" class="mt-0.5 size-4 shrink-0" />
+                  <span>{pick(locale, center.addressAr, center.addressEn)}</span>
+                </li>
+              )
+            }
+          </ul>
+        </div>
+      </div>
+      <div class="border-t border-slate-800">
+        <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-slate-400">
+          <span>© {year} {centerName}. {t(locale, "footer.rights")}</span>
+          {webEnv.DASHBOARD_URL && <a href={webEnv.DASHBOARD_URL} class="hover:text-white" rel="nofollow">{t(locale, "footer.staff")}</a>}
+        </div>
+      </div>
+    </footer>
+
+    {
+      whatsapp && !hideFloatingWhatsapp && (
+        <a
+          href={whatsapp}
+          rel="noopener"
+          aria-label={t(locale, "hero.whatsapp")}
+          class="fixed bottom-4 end-4 z-20 flex size-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg ring-4 ring-white transition hover:scale-105"
+        >
+          <Icon name="whatsapp" class="size-8" />
+        </a>
+      )
+    }
+  </body>
+</html>

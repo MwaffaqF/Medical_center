@@ -1,0 +1,7 @@
+---
+// "/" → the visitor's language: English only if the browser prefers it, otherwise Arabic (default).
+const accept = Astro.request.headers.get("accept-language") ?? "";
+const first = accept.split(",")[0]?.trim().toLowerCase() ?? "";
+const locale = first.startsWith("en") ? "en" : "ar";
+return Astro.redirect(`/${locale}/`, 302);
+---

@@ -1,0 +1,20 @@
+---
+interface Props {
+  url: string | null;
+  name: string;
+  size?: string;
+  eager?: boolean;
+}
+const { url, name, size = "size-16", eager = false } = Astro.props;
+const initial = name.replace(/^(د\.|Dr\.?)\s*/i, "").trim().charAt(0);
+---
+
+{
+  url ? (
+    <img src={url} alt={name} class={`${size} shrink-0 rounded-full bg-slate-100 object-cover ring-2 ring-white shadow`} loading={eager ? "eager" : "lazy"} decoding="async" width="160" height="160" />
+  ) : (
+    <span class={`${size} flex shrink-0 items-center justify-center rounded-full bg-brand-50 text-2xl font-bold text-brand-700 ring-2 ring-white shadow`} aria-hidden="true">
+      {initial}
+    </span>
+  )
+}

@@ -1,0 +1,60 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  // One Worker: the API under /api/* plus the dashboard's static files (free, unmetered).
+  "name": "medical-center-app",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "../dashboard/dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": { "ENVIRONMENT": "development" },
+  // Secrets (not in this file): SECRETS_KEY — see .dev.vars.example and README.
+  // Doctor photos and logos. R2 may ask for a payment card on the account even within the free allowance.
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "medical-center-media-dev" }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "medical-center-dev",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // Free plan allows 5 cron triggers per account. Daily housekeeping at 02:15 Damascus (23:15 UTC).
+  "triggers": { "crons": ["15 23 * * *"] },
+  "observability": { "enabled": true },
+  "env": {
+    "staging": {
+      "name": "medical-center-app-staging",
+      "vars": { "ENVIRONMENT": "staging" },
+      // Replace database_id with the id from: wrangler d1 create medical-center-staging
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "medical-center-staging",
+          "database_id": "REPLACE_WITH_STAGING_D1_ID",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "medical-center-media-staging" }],
+      "triggers": { "crons": ["15 23 * * *"] }
+    },
+    "production": {
+      "name": "medical-center-app",
+      "vars": { "ENVIRONMENT": "production" },
+      // Replace database_id with the id from: wrangler d1 create medical-center-production
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "medical-center-production",
+          "database_id": "REPLACE_WITH_PRODUCTION_D1_ID",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "medical-center-media-production" }],
+      "triggers": { "crons": ["15 23 * * *"] }
+    }
+  }
+}

@@ -1,0 +1,50 @@
+---
+import type { Locale } from "@mc/shared";
+import { formatPrice, pick, t } from "../i18n";
+import type { PublicDoctor, PublicSpecialty } from "../lib/api";
+import Avatar from "./DoctorAvatar.astro";
+
+interface Props {
+  locale: Locale;
+  doctor: PublicDoctor;
+  specialties: PublicSpecialty[];
+  currency: string;
+}
+const { locale, doctor, specialties, currency } = Astro.props;
+const name = pick(locale, doctor.nameAr, doctor.nameEn);
+const spec = specialties.find((s) => s.id === doctor.primarySpecialtyId);
+const visit = doctor.services.find((s) => s.bookingType === "visit") ?? doctor.services[0];
+---
+
+<article class="flex flex-col rounded-2xl bg-white p-5 ring-1 ring-slate-200 transition hover:shadow-md hover:ring-brand-200">
+  <a href={`/${locale}/doctors/${doctor.slug}`} class="flex items-center gap-4">
+    <Avatar url={doctor.photoUrl} name={name} size="size-20" />
+    <div class="min-w-0">
+      <h3 class="truncate text-lg font-semibold">{name}</h3>
+      {spec && <p class="text-sm font-medium text-brand-700">{pick(locale, spec.nameAr, spec.nameEn)}</p>}
+      {pick(locale, doctor.titleAr, doctor.titleEn) && <p class="line-clamp-2 text-sm text-slate-500">{pick(locale, doctor.titleAr, doctor.titleEn)}</p>}
+    </div>
+  </a>
+  <div class="mt-4 flex flex-1 items-end justify-between gap-3">
+    {
+      visit ? (
+        <p class="text-sm text-slate-600">
+          {t(locale, `booking.${visit.bookingType}`)} · <span class="font-semibold text-slate-900">{formatPrice(locale, visit.price, currency)}</span>
+        </p>
+      ) : (
+        <span />
+      )
+    }
+    {
+      doctor.services.length > 0 ? (
+        <a href={`/${locale}/book/${doctor.slug}`} class="rounded-xl bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800">
+          {t(locale, "doctors.book")}
+        </a>
+      ) : (
+        <a href={`/${locale}/doctors/${doctor.slug}`} class="rounded-xl px-4 py-2 text-sm font-semibold text-brand-700 ring-1 ring-brand-200 hover:bg-brand-50">
+          {t(locale, "doctors.profile")}
+        </a>
+      )
+    }
+  </div>
+</article>

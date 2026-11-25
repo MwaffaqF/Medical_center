@@ -1,0 +1,27 @@
+---
+import type { Locale } from "@mc/shared";
+import { doctorCount, pick } from "../i18n";
+import type { PublicSpecialty } from "../lib/api";
+import { specialtyIcon } from "../lib/specialty-icon";
+import Icon from "./Icon.astro";
+
+interface Props {
+  locale: Locale;
+  specialty: PublicSpecialty;
+}
+const { locale, specialty } = Astro.props;
+const count = doctorCount(locale, specialty.doctorCount);
+---
+
+<a
+  href={`/${locale}/specialties/${specialty.slug}`}
+  class="group flex items-center gap-4 rounded-2xl bg-white p-4 ring-1 ring-slate-200 transition hover:shadow-md hover:ring-brand-200"
+>
+  <span class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700 transition group-hover:bg-brand-700 group-hover:text-white">
+    <Icon name={specialtyIcon(specialty) as never} class="size-6" />
+  </span>
+  <span class="min-w-0">
+    <span class="block truncate font-semibold">{pick(locale, specialty.nameAr, specialty.nameEn)}</span>
+    <span class="block text-sm text-slate-500">{count}</span>
+  </span>
+</a>
