@@ -433,7 +433,9 @@ The Arabic texts are drafts; the center should review them.
 
 ## 16. Delivery plan (estimate)
 
-**Progress:** M0–M3 are done.
+**Progress:** M0–M4 are done.
+
+- **M4:** reception operations. The Today screen (pending online bookings oldest first with one-click "Confirm + WhatsApp", new requests count, today's agenda with doctor and status filters and quick check-in / complete / no-show, tomorrow's reminders with a sent mark), the calendar (day view with doctors as columns, week view for one doctor, sessions as background blocks, cards coloured by status, click an empty time to book), the appointment panel (status actions, cancel with reason, reschedule and type change with override after a warning, Re-visit check, WhatsApp with a template choice, internal note, history), new appointments by phone, WhatsApp or walk-in (patient search or inline new patient, free times by day, override), the booking requests inbox (tabs, convert, mark contacted, decline, WhatsApp follow-up) and patients (search, profile, edit, history, merge duplicates for managers). "Mark paid" on the Today screen comes with payments in M5.
 
 - **M3:** the public website. A landing page with sections (hero with booking and WhatsApp buttons, specialties, featured doctors, a "For patients" section with how to book, good-to-know points and FAQ, about, visit us with address, hours, map and contact, and a closing call to action), header navigation with a no-JavaScript phone menu, footer, floating WhatsApp button, specialty and doctor pages with filters, the booking flow (type → day → time → details → reference code and WhatsApp link), booking requests when no time suits, privacy notice, 404, sitemap and robots. The public API serves only public fields, re-checks every slot, limits submissions per network and phone, and verifies Turnstile.
 

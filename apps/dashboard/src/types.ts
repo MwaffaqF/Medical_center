@@ -1,4 +1,4 @@
-import type { BookingType, Locale, MessageTemplateKey, Role } from "@mc/shared";
+import type { AppointmentStatus, BookingType, Locale, MessageTemplateKey, PreferredPeriod, RequestStatus, Role, Source } from "@mc/shared";
 
 /** API response shapes (dates arrive as ISO strings or epoch numbers over JSON). */
 export type Center = {
@@ -136,3 +136,86 @@ export type SlotsResult = {
   price: number;
   days: { date: string; slots: { sessionId: string; date: string; time: string; startAt: number; endAt: number }[] }[];
 };
+
+// ---------------------------------------------------------------- reception (M4)
+
+export type PatientRef = { id: string; fullName: string; phone: string; preferredLocale: Locale };
+export type DoctorRef = { id: string; nameAr: string; nameEn: string };
+
+export type Appointment = {
+  id: string;
+  referenceCode: string;
+  startAt: string;
+  endAt: string;
+  status: AppointmentStatus;
+  source: Source;
+  bookingType: BookingType;
+  priceSnapshot: number;
+  revisitFlag: boolean;
+  isOverride: boolean;
+  patientNote: string | null;
+  internalNote: string | null;
+  createdAt: string;
+  patient: PatientRef;
+  doctor: DoctorRef;
+};
+
+export type AppointmentDetail = {
+  appointment: Appointment & {
+    cancelReason: string | null;
+    confirmedAt: string | null;
+    checkedInAt: string | null;
+    completedAt: string | null;
+  };
+  messages: { id: string; templateKey: MessageTemplateKey; sentAt: string; sentBy: string | null }[];
+  history: { id: string; action: string; at: string; changes: Record<string, unknown> | null; userName: string | null; isSupportAction: boolean }[];
+  patientHistory: Appointment[];
+};
+
+export type TodayResponse = {
+  date: string;
+  pending: Appointment[];
+  agenda: Appointment[];
+  tomorrow: (Appointment & { reminderSent: boolean })[];
+  newRequests: number;
+};
+
+export type BookingRequest = {
+  id: string;
+  referenceCode: string;
+  bookingType: BookingType;
+  preferredDate: string | null;
+  preferredPeriod: PreferredPeriod;
+  patientNote: string | null;
+  status: RequestStatus;
+  appointmentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lastMessageAt: string | null;
+  patient: PatientRef;
+  doctor: DoctorRef;
+};
+
+export type Patient = {
+  id: string;
+  fullName: string;
+  phone: string;
+  gender: "male" | "female" | null;
+  dateOfBirth: string | null;
+  preferredLocale: Locale;
+  notes: string | null;
+  source: Source;
+  createdAt: string;
+  updatedAt: string;
+  total: number;
+  completed: number;
+  noShow: number;
+};
+
+export type PatientDetail = {
+  patient: Patient;
+  appointments: Appointment[];
+  requests: Omit<BookingRequest, "patient" | "doctor" | "lastMessageAt">[];
+};
+
+export type WhatsAppMessage = { text: string; url: string; locale: Locale };

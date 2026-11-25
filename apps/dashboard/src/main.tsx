@@ -11,9 +11,14 @@ import { CenterDetailPage } from "./pages/admin/CenterDetail";
 import { CentersPage } from "./pages/admin/Centers";
 import { AccountPasswordPage, ForcedPasswordPage } from "./pages/auth/ChangePassword";
 import { MfaPage } from "./pages/auth/Mfa";
+import { AppointmentPage } from "./pages/center/AppointmentPage";
 import { AvailabilityPage } from "./pages/center/Availability";
+import { CalendarPage } from "./pages/center/Calendar";
 import { DoctorEditPage } from "./pages/center/DoctorEdit";
 import { DoctorsPage } from "./pages/center/Doctors";
+import { NewAppointmentPage } from "./pages/center/NewAppointment";
+import { PatientPage, PatientsPage } from "./pages/center/Patients";
+import { RequestsPage } from "./pages/center/Requests";
 import { SettingsPage } from "./pages/center/Settings";
 import { SpecialtiesPage } from "./pages/center/Specialties";
 import { StaffPage } from "./pages/center/Staff";
@@ -57,7 +62,21 @@ function AppRoutes({ user }: { user: SessionUser }) {
           <Route path="/admin/activity" element={<ActivityPage />} />
         </>
       )}
-      {inCenter && user.role !== "doctor" && <Route path="/availability" element={<AvailabilityPage />} />}
+      {inCenter && (
+        <>
+          <Route path="/calendar" element={<CalendarPage user={user} />} />
+          <Route path="/appointments/:id" element={<AppointmentPage user={user} />} />
+        </>
+      )}
+      {inCenter && user.role !== "doctor" && (
+        <>
+          <Route path="/availability" element={<AvailabilityPage />} />
+          <Route path="/appointments/new" element={<NewAppointmentPage />} />
+          <Route path="/requests" element={<RequestsPage user={user} />} />
+          <Route path="/patients" element={<PatientsPage />} />
+          <Route path="/patients/:id" element={<PatientPage user={user} />} />
+        </>
+      )}
       {canConfigure && (
         <>
           <Route path="/doctors" element={<DoctorsPage />} />
