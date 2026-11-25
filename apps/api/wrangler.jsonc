@@ -29,23 +29,23 @@
     "staging": {
       "name": "medical-center-app-staging",
       "vars": { "ENVIRONMENT": "staging" },
-      // Replace database_id with the id from: wrangler d1 create medical-center-staging
+      // Created with: wrangler d1 create medical-center-staging --location eeur
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "medical-center-staging",
-          "database_id": "REPLACE_WITH_STAGING_D1_ID",
+          "database_id": "2db38085-5678-46e7-a556-06702a02b653",
           "migrations_dir": "migrations"
         }
       ],
-      // Replace id with the id from: wrangler kv namespace create medical-center-media-staging
-      "kv_namespaces": [{ "binding": "MEDIA", "id": "REPLACE_WITH_STAGING_KV_ID" }],
+      // Created with: wrangler kv namespace create medical-center-media-staging
+      "kv_namespaces": [{ "binding": "MEDIA", "id": "c5d282aa3ec24b3794cbf6301067b88b" }],
       "triggers": { "crons": ["15 23 * * *"] }
     },
     "production": {
       "name": "medical-center-app",
       "vars": { "ENVIRONMENT": "production" },
-      // Replace database_id with the id from: wrangler d1 create medical-center-production
+      // Replace database_id with the id from: wrangler d1 create medical-center-production --location eeur
       "d1_databases": [
         {
           "binding": "DB",

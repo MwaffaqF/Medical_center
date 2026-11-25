@@ -63,16 +63,23 @@ npx wrangler d1 execute DB --remote --env production \
   --command "UPDATE users SET totp_secret=NULL, totp_pending_secret=NULL, totp_last_step=NULL WHERE role='super_admin' AND email='you@example.com'"
 ```
 
+## Test site (staging)
+
+- Dashboard: https://medical-center-app-staging.mwaffaqfanari.workers.dev
+- Website: https://medical-center-web-staging.mwaffaqfanari.workers.dev/ar
+
+GitHub puts the test site online after every change merged into `main` (workflow "Deploy test site"; it can also be run by hand from the Actions tab). It needs the repository secret `CLOUDFLARE_API_TOKEN` (permissions: Workers Scripts Edit, D1 Edit, Workers KV Storage Edit, Account Settings Read). The test site has no bot check (Turnstile) yet.
+
 ## Deploying (first time)
 
 ```sh
 cd apps/api
 npx wrangler login
-npx wrangler d1 create medical-center-staging            # put the id into wrangler.jsonc (env.staging)
+npx wrangler d1 create medical-center-staging --location eeur  # put the id into wrangler.jsonc (env.staging)
 npx wrangler kv namespace create medical-center-media-staging  # put the id into wrangler.jsonc (env.staging)
 npx wrangler secret put SECRETS_KEY --env staging        # paste a new key (see .dev.vars.example)
 npx wrangler d1 migrations apply DB --remote --env staging
-SEED_SUPERADMIN_EMAIL=you@example.com SEED_SUPERADMIN_PASSWORD='a-long-password' node scripts/seed.ts --env staging
+SEED_SUPERADMIN_EMAIL=you@example.com SEED_SUPERADMIN_PASSWORD='a-long-password' node scripts/seed.ts --env staging --pilot-center
 pnpm --filter @mc/dashboard build && pnpm deploy:staging
 ```
 

@@ -1,0 +1,58 @@
+name: Deploy test site
+
+# Puts the test site (Cloudflare "staging") online after every change merged into main,
+# or on demand from the Actions tab. Needs the repository secret CLOUDFLARE_API_TOKEN
+# (permissions: Workers Scripts Edit, D1 Edit, Workers KV Storage Edit, Account Settings Read).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: eb0444b106e291f8a1b8b8ba953b0ca2
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - name: Check the Cloudflare token is set
+        id: token
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::notice::Add the repository secret CLOUDFLARE_API_TOKEN to deploy the test site. Skipping."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.token.outputs.ok == 'true'
+        uses: actions/checkout@v4
+      - if: steps.token.outputs.ok == 'true'
+        uses: pnpm/action-setup@v4
+      - if: steps.token.outputs.ok == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - if: steps.token.outputs.ok == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Build the dashboard
+        if: steps.token.outputs.ok == 'true'
+        run: pnpm --filter @mc/dashboard build
+      - name: Update the database
+        if: steps.token.outputs.ok == 'true'
+        working-directory: apps/api
+        run: pnpm exec wrangler d1 migrations apply DB --remote --env staging
+      - name: Deploy the API and dashboard
+        if: steps.token.outputs.ok == 'true'
+        working-directory: apps/api
+        run: pnpm exec wrangler deploy --env staging
+      - name: Deploy the public website
+        if: steps.token.outputs.ok == 'true'
+        run: pnpm --filter @mc/web deploy:staging
